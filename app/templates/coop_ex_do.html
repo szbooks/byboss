@@ -1,0 +1,75 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+    <div class="container">
+        <form action="{{ url_for('main.do_coop_ex', id=resultid.id) }}" method="post">
+
+             <div class="row mb-3">
+                <label for="name" class="col-sm-1 col-form-label">合作伙伴：<span class="text-danger">*</span></label>
+                <div class="col-sm-5 d-flex align-items-center">
+                    <input type="text" class="form-control" id="name" name="name" value="{{ resultid.name|default('', true) }}" required>
+                </div>
+            </div>
+
+            <!-- 邀请码 -->
+            <div class="row mb-3">
+                <label for="code" class="col-sm-1 col-form-label">推广邀请码：</label>
+                <div class="col-sm-5 d-flex align-items-center">
+                    <input type="text" class="form-control" id="code" name="code" value="{{ resultid.code|default('', true) }}" placeholder="多个邀请码请用英文逗号分割">
+                </div>
+            </div>
+
+                  <!-- 联系电话 -->
+            <div class="row mb-3">
+                <label for="phone" class="col-sm-1 col-form-label">联系方式：</label>
+                <div class="col-sm-5">
+                    <input type="text" class="form-control" id="phone" name="phone" value="{{ resultid.phone|default('', true) }}">
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label for="wx_id" class="col-sm-1 col-form-label">微信id：</label>
+                <div class="col-sm-5">
+                    <input type="text" class="form-control" id="wx_id" name="wx_id" value="{{ resultid.wx_id|default('', true) }}">
+                </div>
+            </div>
+
+            <!-- 合作区域 -->
+            <div class="row mb-3">
+                <label for="area" class="col-sm-1 col-form-label">合作区域：</label>
+                <div class="col-sm-5">
+                    <input type="text" class="form-control" id="area" name="area" value="{{ resultid.area|default('', true) }}">
+                </div>
+            </div>
+
+                       <!-- 优惠策略 -->
+            <div class="row mb-3">
+                <label for="discounts" class="col-sm-1 col-form-label">优惠策略：</label>
+                <div class="col-sm-5">
+                    <textarea class="form-control" id="discounts" name="discounts" style="height: 150px">{{ resultid.discounts|default('', true) }}</textarea>
+                </div>
+            </div>
+
+            <!-- 备注 -->
+            <div class="row mb-3">
+                <label for="remark" class="col-sm-1 col-form-label">备注：</label>
+                <div class="col-sm-5">
+                    <textarea class="form-control" id="remark" name="remark" style="height: 150px" >{{ resultid.remark|default('', true) }}</textarea>
+                </div>
+            </div>
+
+
+            <div class="row">
+                <div class="col-12">
+
+                        <button type="submit" name="action" value="completed" class="btn btn-success me-2" id="communicated-button">保存</button>
+
+                    <a href="{{ url_for('main.coop_ex') }}" class="btn btn-secondary">取消</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+
+
+{% endblock %}

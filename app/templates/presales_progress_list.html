@@ -1,0 +1,1812 @@
+{% extends 'layout/base.html' %}
+
+
+{% block content %}
+
+
+
+
+    {#<script src="{{ url_for('static', filename='js/date_select/laydate.js') }}"></script>#}
+    <script src="{{ url_for('static', filename='js/date_select/jquery.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/date_select/moment.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/date_select/daterangepicker.min.js') }}"></script>
+    {#    <script src="{{ url_for('static', filename='js/presales_progress.js') }}"></script>#}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/date_select/daterangepicker.css') }}">
+
+    {% set query_params = {
+    'account_status': request.args.get('account_status', ''),
+    'company_id': request.args.get('company_id', ''),
+    'operator': request.args.get('operator', ''),
+    'persaler': request.args.get('persaler', ''),
+    'date_select': request.args.get('date_select', ''),
+    'task_status': request.args.get('task_status', ''),
+    "search_api": request.args.get('search_api', ''),
+    "star": request.args.get('star', ''),
+    "room_num": request.args.get('room_num', ''),
+    "api_channel": request.args.get('api_channel', ''),
+    "coo_name": request.args.get('coo_name', ''),
+    "search_tag": request.args.get('search_tag', ''),
+    "operating_sub": request.args.get('operating_sub', ''),
+    "companyType": request.args.get('companyType', '')
+} %}
+
+    <div class="content-area">
+    <!-- 顶部操作栏 -->
+    <div class="d-flex align-items-center flex-wrap mb-3">
+        <!-- 操作按钮 -->
+        <div style="align-self: start; margin-top: 8px !important;">
+            <a href="{{ url_for('main.add_presales_progress') }}" class="btn btn-primary me-2 mb-2" id="add-company-btn">新增公司</a>
+        </div>
+
+
+        <!-- 查询表单 -->
+        <form id="company-form" action="{{ url_for('main.presales_progress') }}" method="get" class="mb-3">
+
+            <!-- 第一行：原有查询条件 -->
+            <div class="d-flex flex-wrap align-items-center mb-2 gap-2">
+                <!-- 公司ID 输入框，限制最大长度为50 -->
+                <input type="text" class="form-control me-2" name="company_id" placeholder="输入公司ID" value="{{ request.args.get('company_id', '') }}" style="max-width:150px">
+
+                <!-- 账号状态 -->
+                <select class="form-select me-2 search_account" name="account_status" id="account_status">
+                    <option value=''>账号状态</option>
+                    <option value="5" {% if status_filter['account_status'] == '5' %}selected{% endif %}>未激活</option>
+                    <option value="1" {% if status_filter['account_status'] == '1' %}selected{% endif %}>试用期</option>
+                    <option value="2" {% if status_filter['account_status'] == '2' %}selected{% endif %}>已付费</option>
+                    <option value="3" {% if status_filter['account_status'] in ['3', '4'] %}selected{% endif %}>已过期</option>
+                </select>
+
+                <!-- 负责人 -->
+                <select class="form-select me-2 search_operator" name="persaler" id="persaler">
+                    <option value=''>负责人</option>
+                    <option value=0 {% if status_filter.persaler == 0 %}selected{% endif %}>未认领</option>
+                    {% for persaler_name in persaler_names %}
+                        <option value='{{ persaler_name.id }}' {% if status_filter.persaler == persaler_name.id %}selected{% endif %}>
+                            {{ persaler_name.username }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <!-- 售前进度 -->
+                <select class="form-select me-2 search_account" name="task_status" id="task_status">
+                    <option value=''>售前进度</option>
+                    <option value="1" {% if status_filter['task_status'] == '1' %}selected{% endif %}>初步沟通</option>
+                    <option value="3" {% if status_filter['task_status'] == '3' %}selected{% endif %}>直连</option>
+                    <option value="4" {% if status_filter['task_status'] == '4' %}selected{% endif %}>转售后</option>
+                    <option value="6" {% if status_filter['task_status'] == '6' %}selected{% endif %}>放弃</option>
+
+                </select>
+
+                <!-- API接口 -->
+                <select class="form-select me-2 search_api" name="search_api" id="search_api">
+                    <option value=''>api接口</option>
+                    <option value="1" {% if status_filter['search_api'] == '1' %}selected{% endif %}>有</option>
+                </select>
+
+                <!-- 星级 -->
+                <select class="form-select me-2 search_api" name="star" id="star">
+                    <option value=''>星级</option>
+                    <option value="5" {% if status_filter['star'] == '5' %}selected{% endif %}>5星</option>
+                    <option value="4" {% if status_filter['star'] == '4' %}selected{% endif %}>4星</option>
+                    <option value="3" {% if status_filter['star'] == '3' %}selected{% endif %}>3星</option>
+                </select>
+
+                <!-- 房号 -->
+                <select class="form-select me-2 room_num" name="room_num" id="room_num">
+                    <option value=''>房号</option>
+                    <option value="1" {% if status_filter['room_num'] == '1' %}selected{% endif %}>30以上</option>
+                    <option value="2" {% if status_filter['room_num'] == '2' %}selected{% endif %}>10-30</option>
+                    <option value="3" {% if status_filter['room_num'] == '3' %}selected{% endif %}>10以下</option>
+                </select>
+
+                <!-- 所属运营群 输入框，限制最大长度为100 -->
+                <input type="text" class="form-control me-2" name="operating_sub" placeholder="输入所属运营群" value="{{ request.args.get('operating_sub', '') }}" style="max-width:150px">
+
+                <!-- 日期范围 -->
+                <input type="text" placeholder="选择日期范围：" class="form-control date_select" id="demo" name="date_select" style="width:350px" readonly="">
+
+                <button type="submit" class="btn btn-outline-primary">查询</button>
+
+{#                <button type="button" class="btn btn-info ms-2" id="refresh-today-btn">#}
+{#                    <i class="bi bi-arrow-clockwise"></i> 当日数据刷新#}
+{#                </button>#}
+
+{#btn btn-info ms-2#}
+
+
+            </div>
+
+            <!-- 第二行：新增的查询条件（隐藏区域） -->
+            {#    <div class="collapse" id="moreFilters">#}
+            <div class="d-flex flex-wrap align-items-center mb-2 gap-2">
+
+                <!-- 新增查询条件示例，限制最大长度为20 -->
+                <input type="text" class="form-control me-2" name="api_channel" placeholder="自助机关键字" value="{{ request.args.get('api_channel', '') }}" style="max-width:150px">
+                <input type="text" class="form-control me-2" name="coo_name" placeholder="合作商" value="{{ request.args.get('coo_name', '') }}" style="max-width:150px">
+                <!-- 售前进度 -->
+                <select class="form-select me-2 search_tag" name="search_tag" id="search_tag">
+                    <option value=''>标签</option>
+                    <option value="复盘" {% if status_filter['search_tag'] == '复盘' %}selected{% endif %}>复盘</option>
+                    <option value="重点跟踪" {% if status_filter['search_tag'] == '重点跟踪' %}selected{% endif %}>重点跟踪</option>
+                </select>
+
+                <select class="form-select me-2 search_tag" name="companyType" id="companyType">
+                    <option value=''>商家类型</option>
+                    <option value="hotel" {% if status_filter['companyType'] == 'hotel' %}selected{% endif %}>酒店</option>
+                    <option value="homestay" {% if status_filter['companyType'] == 'homestay' %}selected{% endif %}>民宿</option>
+                    <option value="youthHostel" {% if status_filter['companyType'] == 'youthHostel' %}selected{% endif %}>青旅</option>
+                </select>
+
+            </div>
+
+
+            <input type="hidden" name="btnradio" id="hidden_btnradio">
+        </form>
+
+{#        <div class="btn-group right-align scale-search" role="group" aria-label="Basic radio toggle button group">#}
+{#            <input type="radio" class="btn-check" name="btnradio" id="btnradio1" autocomplete="off" {% if persaler_list_value == '' or persaler_list_value != 'w' %}checked{% endif %}>#}
+{#            <label class="btn btn-outline-primary" for="btnradio1">全部数据</label>#}
+{##}
+{##}
+{#            <input type="radio" class="btn-check" name="btnradio" id="btnradio2" autocomplete="off" {% if persaler_list_value == 'w' %}checked{% endif %}>#}
+{#            <label class="btn btn-outline-primary" for="btnradio2">10-29套</label>#}
+{##}
+{#            <input type="radio" class="btn-check" name="btnradio" id="btnradio3" autocomplete="off" {% if persaler_list_value == 's' %}checked{% endif %}>#}
+{#            <label class="btn btn-outline-primary" for="btnradio3">30及套以上</label>#}
+{##}
+{#            <input type="radio" class="btn-check" name="btnradio" id="btnradio4" autocomplete="off" {% if persaler_list_value == 'o' %}checked{% endif %}>#}
+{#            <label class="btn btn-outline-primary custom-tooltip" title="未注册、小于10套的可以在这找到" for="btnradio4">其他</label>#}
+{#        </div>#}
+
+
+    </div>
+
+    <!-- 统计汇总信息 -->
+    {% if results and results[0] %}
+        <div class="alert alert-info mb-3">
+            记录总数: {{ total_count }} | 当日新增: {{ new_count }} | <span style="color: red;">未认领：{{ unclaimed_count }}</span> | 售前进度：初步沟通 {{ step_one_count }} ，直连 {{ step_two_count }}
+            ，转售后 {{ step_four_count }} ，放弃 {{ step_six_count }}
+        </div>
+    {% endif %}
+
+
+
+    {##}
+    {#    <p class="record_custom-margin">#}
+    {#        记录总数: {{ total_count }} &emsp;&emsp;&emsp;#}
+    {#        当日新增: {{ new_count }}&emsp;&emsp;&emsp;#}
+    {#        <span style="color: red;">未认领：{{ unclaimed_count }}</span>&emsp;&emsp;&emsp;#}
+    {#        售前进度：{{ step_one_count }}（初步沟通），{{ step_two_count }}（直连），{{ step_four_count }}（转售后），{{ step_six_count }}（放弃）#}
+    {#    </p>#}
+
+    {#            <div style="max-height: 2000px; overflow-y: auto;">#}
+    {#        <div class="table-content">#}
+    <div class="d-flex align-items-center mb-3">
+
+        {#        <a href="#" id="batch-claim-btn" class="text-link">批量认领</a>#}
+    </div>
+    <table id="company-table" class="table table-striped table-bordered table-light table-hover">
+        <thead>
+        <tr style="background-color: white; position: sticky; top: 0; z-index: 100;">
+            {#            <th><input type="checkbox" id="select-all"></th>#}
+            <th>星级</th>
+            <th>标签</th>
+            <th>公司ID</th>
+            <th>公司名称</th>
+            <th>所属运营群</th>
+            <th>售前进度</th>
+            <th>心态</th>
+            <th>业态</th>
+            <th>备注</th>
+            {#            <th>联系方式</th>#}
+            <th>房号数</th>
+            <th>直连数</th>
+            <th>房态同步</th>
+            <th>激活时间</th>
+{#            <th>到期日</th>#}
+            <th>账号状态</th><!-- 试用期，已付费，保号期，冻结期，紧急延期 -->
+            <th>注册来源(公司id)</th>
+            <th>店主运营公司</th>
+            <th>入表时间</th>
+            <th>负责人</th>
+{#            <th>当前处理人</th>#}
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for result  in results %}
+            <tr>
+                {#                <td><input type="checkbox" class="row-checkbox" value="{{ result.taskid }}"></td>#}
+                <td class="star-cell">
+                    <span class="stars">
+                        {% for i in range(result.stars) %}
+                            <span class="star">★</span>
+                        {% endfor %}
+                    </span>
+                </td>
+
+                <td class="tags-cell clickable-cell" data-taskid="{{ result.taskid }}" style="cursor: pointer; min-width: 100px;">
+                    <div class="tag-display">
+                        {% if result.tag %}
+                            {% for tag in result.tag.split(',') if tag %}
+                                <span class="tag-badge">{{ tag }}</span>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <!-- 下拉菜单容器 -->
+                    <div class="dropdown-menu dropdown-menu-end tag-dropdown" style="min-width: 200px; display: none;">
+                        <ul class="list-unstyled mb-0">
+                            <li>
+                                <div class="form-check m-2">
+                                    <input class="form-check-input tag-checkbox" type="checkbox" value="复盘" id="tag1_{{ result.taskid }}"
+                                            {% if '复盘' in (result.tag | default('')).split(',') %} checked {% endif %}>
+                                    <label class="form-check-label" for="tag1_{{ result.taskid }}">复盘</label>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="form-check m-2">
+                                    <input class="form-check-input tag-checkbox" type="checkbox" value="重点跟踪" id="tag2_{{ result.taskid }}"
+                                            {% if '重点跟踪' in (result.tag | default('')).split(',') %} checked {% endif %}>
+                                    <label class="form-check-label" for="tag2_{{ result.taskid }}">重点跟踪</label>
+                                </div>
+                            </li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li>
+                                <button class="btn btn-success btn-sm w-100 save-tags-btn">确定</button>
+                            </li>
+                        </ul>
+                    </div>
+                </td>
+                <td style="min-width: 100px">
+                    <a href="https://www.bypms.cn/admin/user/fakelogin?companyId={{ result.company_id }}" target="_blank">
+                        {{ result.company_id }}<br>
+                        {% if result.api_channel %}
+                            <div class="label">{{ result.api_channel }}</div><br>
+                        {% elif result.api_config %}
+                            <div class="label">有接口</div>
+                        {% endif %}
+                        {% if result.coo_name %}
+                            <div class="label" style="color: mediumpurple;">{{ result.coo_name }}</div>
+                        {% endif %}
+                    </a>
+                </td>
+                <td style="width: 150px"
+                        data-regi-infor="{{ result.regi_infor }}"
+                        data-company="{{ result.company_name }}"
+                        class="company-cell">
+                    {% if result.company_name %}
+                        {{ result.company_name }}
+                    {% endif %}
+                    <br>
+                    <!-- 详细信息将由 JS 填充 -->
+                    <div class="regi-details"></div>
+                </td>
+                <td>
+                    {% if result.operating_sub_phone %}{{ result.operating_sub_phone }}{% else %}{{ "" }}{% endif %}<br>
+                    {% if result.operating_sub_name %}{{ result.operating_sub_name }}{% else %}{{ "" }}{% endif %}
+                </td>
+                <td style="min-width: 80px">
+                    {% if result.progress_state == '1' %}
+                        {#                            <span class="status-pending">初步沟通</span>#}
+                        <a href="#" class="timeline-link" data-id="{{ result.taskid }}" data-step_one="{{ result.step_one }}" data-step_two="{{ result.step_two }}"
+                           data-step_three="{{ result.step_three }}" data-step_four="{{ result.step_four }}" data-step_five="{{ result.step_five }}"
+                           data-step_six="{{ result.step_six }}">初步沟通</a><br>
+                        {#                        {% elif result.progress_state == '2' %}#}
+                        {#                            <a href="#" class="timeline-link" data-id="{{ result.taskid }}" data-step_one="{{ result.step_one }}" data-step_two="{{ result.step_two }}"#}
+                        {#                               data-step_three="{{ result.step_three }}" data-step_four="{{ result.step_four }}" data-step_five="{{ result.step_five }}"#}
+                        {#                               data-step_six="{{ result.step_six }}">注册</a><br>#}
+                    {% elif result.progress_state == '3' %}
+                        <a href="#" class="timeline-link" data-id="{{ result.taskid }}" data-step_one="{{ result.step_one }}" data-step_two="{{ result.step_two }}"
+                           data-step_three="{{ result.step_three }}" data-step_four="{{ result.step_four }}" data-step_five="{{ result.step_five }}"
+                           data-step_six="{{ result.step_six }}">直连</a><br>
+                    {% elif result.progress_state == '4' %}
+                        <a href="#" class="timeline-link" data-id="{{ result.taskid }}" data-step_one="{{ result.step_one }}" data-step_two="{{ result.step_two }}"
+                           data-step_three="{{ result.step_three }}" data-step_four="{{ result.step_four }}" data-step_five="{{ result.step_five }}"
+                           data-step_six="{{ result.step_six }}">转售后</a><br>
+                    {% elif result.progress_state == '5' %}
+                        <a href="#" class="timeline-link" data-id="{{ result.taskid }}" data-step_one="{{ result.step_one }}" data-step_two="{{ result.step_two }}"
+                           data-step_three="{{ result.step_three }}" data-step_four="{{ result.step_four }}" data-step_five="{{ result.step_five }}"
+                           data-step_six="{{ result.step_six }}">复盘</a><br>
+                    {% elif result.progress_state == '7' %}
+                        <a href="#" class="timeline-link" data-id="{{ result.taskid }}" data-step_one="{{ result.step_one }}" data-step_two="{{ result.step_two }}"
+                           data-step_three="{{ result.step_three }}" data-step_four="{{ result.step_four }}" data-step_five="{{ result.step_five }}"
+                           data-step_six="{{ result.step_six }}" style="color: #dc3545">重点跟踪</a><br>
+                    {% elif result.progress_state == '6' %}
+                        <a href="#" class="timeline-link" data-id="{{ result.taskid }}" data-step_one="{{ result.step_one }}" data-step_two="{{ result.step_two }}"
+                           data-step_three="{{ result.step_three }}" data-step_four="{{ result.step_four }}" data-step_five="{{ result.step_five }}"
+                           data-step_six="{{ result.step_six }}">放弃</a><br>
+
+                    {% else %}
+                        {{ "" }}
+                    {% endif %}
+
+
+                </td>
+                <td style="min-width: 100px">
+                    <span class="wrap-ellipsis" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ result.xin_remark }}">
+                        {{ result.xin_remark }}
+                    </span>
+                </td>
+
+                <td style="max-width: 300px">
+                    <span class="wrap-ellipsis" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ result.yetai_remark }}">
+                        {{ result.yetai_remark }}
+                    </span>
+                </td>
+
+                <td style="max-width: 300px">
+                    <span class="wrap-ellipsis" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ result.remark }}">
+                        {{ result.remark }}
+                    </span>
+                </td>
+
+
+                {#                <td>{% if result.contact %}{{ result.contact }}{% else %}{{ "" }}{% endif %}</td>#}
+
+                <td>{% if result.room_count %}{{ result.room_count }}{% else %}{{ 0 }}{% endif %}</td>
+                <td>{% if result.platform_count %}{{ result.platform_count }}{% else %}{{ 0 }}{% endif %}</td>
+                <td>{% if result.global_sync %}{{ result.global_sync }}{% else %}{{ "" }}{% endif %}</td>
+                <td>{% if result.active_time %}{{ result.active_time }}{% else %}{{ "" }}{% endif %}</td>
+{#                <td>{% if result.end_data %}{{ result.end_data }}{% else %}{{ "" }}{% endif %}</td>#}
+                <td>
+                    {% if result.account_state == '1' %}
+                        <span class="status-pending">试用期</span>
+                    {% elif result.account_state == '2' %}
+                        已付费
+                    {% elif result.account_state == '4' or  result.account_state == '3' %}
+                        已过期
+                    {% elif result.account_state == '5' %}
+                        未激活
+                    {% else %}
+                        {{ "" }}
+                    {% endif %}
+                </td>
+                <td>{% if result.from_code %}{{ result.from_code }}{% else %}{{ "" }}{% endif %}</td>
+                {#                    <td>{% if result.affiliated_company %}{{ result.affiliated_company }}{% else %}{{ "" }}{% endif %}</td>#}
+                <td style="max-width: 150px">
+                    <span class="wrap-ellipsis" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ result.affiliated_company }}">
+                        {{ result.affiliated_company }}
+                    </span>
+                </td>
+
+
+                <td>{% if result.create_data %}{{ result.create_data }}{% else %}{{ "" }}{% endif %} </td>
+
+                <td>
+                    {% if result.presales %}
+                        <div>{{ result.presales }}</div>
+                    {% endif %}
+
+                    <form id="claimForm_{{ result.taskid }}"
+                          action="{{ url_for('main.claim_presales', presales_id=result.taskid) }}"
+                          method="post"
+                          style="display: none;">
+                        <!-- 隐藏字段：二次确认标识 -->
+                        <input type="hidden" name="confirmed" id="confirmed_{{ result.taskid }}" value="0">
+
+                        <!-- 原有查询参数 -->
+                        <input type="hidden" name="current_page" value="{{ page }}">
+                        <input type="hidden" name="account_status" value="{{ request.args.get('account_status', '') }}">
+                        {% for key, value in query_params.items() %}
+                            <input type="hidden" name="{{ key }}" value="{{ value }}">
+                        {% endfor %}
+                        <!-- 其他隐藏字段... -->
+                    </form>
+
+                    <a href="#" onclick="checkPresalesBeforeClaim('{{ result.taskid }}'); return false;">认领</a>
+                </td>
+{#                <td>{% if result.operator %}{{ result.operator }}{% else %}{{ "" }}{% endif %}</td>#}
+
+                <td style="width: 80px">
+
+                    <a href="#" class="edit-button" data-id="{{ result.taskid }}" data-account-status="{{ result.progress_state }}" data-description="{{ result.remark }}"
+                       data-history-description="{{ result.remark }}"
+                       data-bs-toggle="modal" data-bs-target="#mprogressModal">处理</a>
+
+                    <a href="#" class="baseedit-button" data-id="{{ result.taskid }}" data-company="{{ result.company_id }}" data-contact="{{ result.contact }}"
+                       data-yetai_remark="{{ result.yetai_remark }}" data-xin_remark="{{ result.xin_remark }}"
+                       data-bs-toggle="modal" data-bs-target="#baseModal">编辑</a>
+
+
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    {#    </div>#}
+    <!-- Modal -->
+    <div class="modal fade" id="mprogressModal" tabindex="-1" aria-labelledby="mprogressModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="exampleModalLabel">售前进度</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editForm" method="post">
+                        <div class="row mb-3 align-items-center">
+                            <div class="col-2 col-form-label">售前进度:</div>
+                            <div class="col-4">
+                                <select class="form-select me-2 progress_state" name="progress_state" id="progress_state">
+                                    <option value="1">初步沟通</option>
+                                    <option value="3">直连</option>
+                                    <option value="4">转售后</option>
+                                    {#                                    <option value="5">复盘</option>#}
+                                    <option value="6">放弃</option>
+                                    {#                                    <option value="7">重点跟踪</option>#}
+                                    {#                                        <option value="5">试用期间</option>#}
+                                    {#                                        <option value="6">到期付费</option>#}
+                                </select>
+                            </div>
+                        </div>
+
+
+                        {#                            <div class="row mb-3">#}
+                        {#                                <div class="col-2 col-form-label">历史备注:</div>#}
+                        {#                                <div class="col-4" id="history_remark"></div>#}
+                        {#                            </div>#}
+
+
+                        <div class="row mb-3">
+                            <label for="remark" class="col-2 col-form-label">备注:</label>
+                            <div class="col-4">
+                                <textarea class="form-control" id="remark" name="remark" style="height: 200px;width: 600px;"></textarea>
+                            </div>
+                        </div>
+                        <input type="hidden" name="id" id="id">
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    <button type="submit" form="editForm" class="btn btn-primary">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- 编辑Modal -->
+    <div class="modal fade" id="baseModal" tabindex="-1" aria-labelledby="baseModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="exampleModalLabel">基础资料编辑</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="baseeditForm" method="post">
+                        <div class="row mb-3">
+                            <label for="company_id" class="col-sm-2 col-form-label">公司ID：</label>
+                            <div class="col-sm-8 d-flex align-items-center">
+                                <input type="text" class="form-control" id="company_id" name="company_id">
+                            </div>
+                            <div id="company_id_feedback" class="form-text text-danger" style="margin-left: 110px;"></div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <label for="contact" class="col-sm-2 col-form-label">联系方式：</label>
+                            <div class="col-sm-8 d-flex align-items-center">
+                                <input type="text" class="form-control" id="contact" name="contact">
+                            </div>
+                        </div>
+
+                        <!-- 心态整体区域 -->
+<!-- 心态字段组 -->
+<div class="row mb-3 align-items-start">
+    <label class="col-sm-2 col-form-label">心态：</label>
+    <div class="col-sm-8">
+        <div class="border rounded p-3 bg-light">
+            <!-- 意愿 -->
+            <div class="mb-2 d-flex align-items-center">
+                <span class="me-3" style="width: 60px;">意愿：</span>
+                <div class="btn-group btn-group-sm" role="group">
+                    <input type="radio" class="btn-check" name="xin_yiwu" id="xin_yiwu_strong" value="强">
+                    <label class="btn btn-outline-primary btn-sm" for="xin_yiwu_strong">强</label>
+
+                    <input type="radio" class="btn-check" name="xin_yiwu" id="xin_yiwu_medium" value="中">
+                    <label class="btn btn-outline-primary btn-sm" for="xin_yiwu_medium">中</label>
+
+                    <input type="radio" class="btn-check" name="xin_yiwu" id="xin_yiwu_weak" value="弱">
+                    <label class="btn btn-outline-primary btn-sm" for="xin_yiwu_weak">弱</label>
+                </div>
+            </div>
+
+            <!-- 沟通 -->
+            <div class="mb-2 d-flex align-items-center">
+                <span class="me-3" style="width: 60px;">沟通：</span>
+                <div class="btn-group btn-group-sm" role="group">
+                    <input type="radio" class="btn-check" name="xin_goutong" id="xin_goutong_good" value="好">
+                    <label class="btn btn-outline-success btn-sm" for="xin_goutong_good">好</label>
+
+                    <input type="radio" class="btn-check" name="xin_goutong" id="xin_goutong_avg" value="一般">
+                    <label class="btn btn-outline-success btn-sm" for="xin_goutong_avg">一般</label>
+
+                    <input type="radio" class="btn-check" name="xin_goutong" id="xin_goutong_bad" value="差">
+                    <label class="btn btn-outline-success btn-sm" for="xin_goutong_bad">差</label>
+                </div>
+            </div>
+
+            <!-- 能力 -->
+            <div class="d-flex align-items-center">
+                <span class="me-3" style="width: 60px;">能力：</span>
+                <div class="btn-group btn-group-sm" role="group">
+                    <input type="radio" class="btn-check" name="xin_nengli" id="xin_nengli_strong" value="强">
+                    <label class="btn btn-outline-info btn-sm" for="xin_nengli_strong">强</label>
+
+                    <input type="radio" class="btn-check" name="xin_nengli" id="xin_nengli_medium" value="中">
+                    <label class="btn btn-outline-info btn-sm" for="xin_nengli_medium">中</label>
+
+                    <input type="radio" class="btn-check" name="xin_nengli" id="xin_nengli_weak" value="弱">
+                    <label class="btn btn-outline-info btn-sm" for="xin_nengli_weak">弱</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 隐藏字段 -->
+        <input type="hidden" id="xin_remark" name="xin_remark">
+    </div>
+</div>
+
+                        <div class="row mb-3">
+                            <label for="yetai_remark" class="col-2 col-form-label">业态：</label>
+                            <div class="col-4">
+                                <textarea class="form-control" id="yetai_remark" name="yetai_remark" style="height: 200px;width: 600px" ;></textarea>
+                                <!-- 业态提示框 -->
+                                <div id="yetai_suggestions" class="suggestions-box" style="display: none; border: 1px solid #ccc; max-height: 150px; max-width:600px;overflow-y: auto"></div>
+                            </div>
+                        </div>
+                        <input type="hidden" name="id" id="id">
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    <button type="submit" form="baseeditForm" class="btn btn-primary">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Modal -->
+    <div class="modal fade" id="timelineModal" tabindex="-1" aria-labelledby="timelineModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="exampleModalLabel">时间线</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body" id="timeline-modal-body">
+                    <span id="step-one-content"></span>
+                    {#                        <span id="step-two-content"></span>#}
+                    <span id="step-three-content"></span>
+                    <span id="step-four-content"></span>
+                    {#                        <span id="step-five-content"></span>#}
+                    {#                        <span id="step-six-content"></span>#}
+                </div>
+                <br><br>
+            </div>
+        </div>
+    </div>
+
+    <nav aria-label="Page navigation" class="d-flex justify-content-end pagination-container">
+        <ul class="pagination pagination-sm">
+            <!-- 上一页 -->
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                {#                <a class="page-link" href="{{ url_for('main.presales_progress', page=page-1, **query_params) }}">上一页</a>#}
+                <a class="page-link" href="{{ url_for('main.presales_progress', page=page-1,**query_params) }}">上一页</a>
+            </li>
+
+            <!-- 首页 -->
+            <li class="page-item {% if page == 1 %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('main.presales_progress', page=1, **query_params) }}">1</a>
+            </li>
+
+            <!-- 省略号（如果当前页不在前几页） -->
+            {% if start_page > 2 %}
+                <li class="page-item disabled">
+                    <span class="page-link">...</span>
+                </li>
+            {% endif %}
+
+            <!-- 动态页码范围 -->
+            {% for num in range(start_page, end_page + 1) %}
+                <li class="page-item {% if num == page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('main.presales_progress', page=num, **query_params) }}">{{ num }}</a>
+                </li>
+            {% endfor %}
+
+            <!-- 省略号（如果当前页不在后几页） -->
+            {% if end_page < total_pages - 1 %}
+                <li class="page-item disabled">
+                    <span class="page-link">...</span>
+                </li>
+            {% endif %}
+
+            <!-- 末页 -->
+            {% if total_pages > 1 %}
+                <li class="page-item {% if page == total_pages %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('main.presales_progress', page=total_pages, **query_params) }}">{{ total_pages }}</a>
+                </li>
+            {% endif %}
+
+            <!-- 下一页 -->
+            <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('main.presales_progress', page=page+1, **query_params) }}">下一页</a>
+            </li>
+        </ul>
+    </nav>
+
+
+    <style>
+        .modal-body {
+            display: flex;
+            justify-content: space-between; /* 或者使用 space-around, flex-start, center 等 */
+        }
+
+        .container span {
+            color: blue;
+        }
+
+        .col-form-label {
+            margin-left: 10px;
+
+
+        }
+
+        /* styles.css */
+        .label {
+            display: inline-block;
+            padding: 4px 8px; /* 内边距保持不变 */
+        {#background-color: #ffffff; /* 白底保持不变 */#}
+            /* 移除边框 */
+            border: none;
+            /* 或者你也可以简单地不声明border属性 */
+            /* border: 0; 这也会移除边框，但通常使用border: none更为明确 */
+            border-radius: 4px; /* 可选：圆角边框，如果你想要保持的话 */
+            font-size: 14px; /* 字体大小保持不变 */
+            color: #666666; /* 字体颜色保持不变 */
+            box-shadow: none; /* 如果你也不想要阴影效果，可以将其设置为none */
+        }
+
+        .wrap-ellipsis {
+            display: -webkit-box;
+            -webkit-line-clamp: 5; /* 显示的最大行数 */
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        {#max-width: 250px;#} word-wrap: break-word; /* 允许单词断开换行 */
+            white-space: pre-line;  /* 关键属性，保留换行符 */
+            {#line-height: 1.5;#}
+            {#display: inline-block;#}
+            text-align: left;
+            {#max-width: 100%;#}
+        }
+
+
+        .edit-button, .baseedit-button {
+            display: block;
+            margin-bottom: 10px; /* 设置底部间距 */
+        }
+
+        /* 提示框样式 */
+        .suggestions-box {
+            position: absolute;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            z-index: 1000;
+            width: 100%;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        /* 提示项样式 */
+        .suggestion-item {
+            padding: 8px;
+            cursor: pointer;
+        }
+
+        .suggestion-item:hover {
+            background-color: #f0f0f0;
+        }
+
+
+        /* 复选框列居中 */
+        th:first-child, td:first-child {
+            text-align: center;
+            width: 40px; /* 设置固定宽度 */
+        }
+
+        /* 全选复选框样式 */
+        #select-all {
+            margin: 0;
+        }
+
+        /* 行复选框样式 */
+        .row-checkbox {
+            margin: 0;
+        }
+
+
+        /* 自定义浮动框样式 */
+        .bs-tooltip-top .tooltip-inner {
+            background-color: #333;
+            color: #fff;
+            padding: 8px 12px;
+            font-size: 14px;
+            border-radius: 4px;
+        }
+
+        .bs-tooltip-top .arrow::before {
+            border-top-color: #333;
+        }
+
+        .star-cell {
+            width: 100px;
+            text-align: center; /* 水平居中 */
+            vertical-align: middle; /* 垂直居中（可选） */
+            padding: 0;
+        }
+
+        .stars {
+            display: inline-block;
+            white-space: nowrap; /* 防止换行 */
+            letter-spacing: -0.2em; /* 星星更紧凑 */
+        }
+
+        .star {
+            color: #D4AF37;
+            font-size: 16px;
+            display: inline-block;
+            margin-right: -0.1em; /* 进一步减少间距 */
+        }
+
+        /* 标签样式 - 统一边框样式，无背景色 */
+        .tag-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            margin: 2px;
+            border-radius: 4px;
+            border: 1px solid #0089ff; /* 边框颜色 */
+            color: #333; /* 文字颜色 */
+            font-size: 12px;
+            line-height: 1.5;
+            background-color: transparent; /* 无背景色 */
+        }
+
+        .clickable-cell:hover {
+            background-color: #f1f1f1;
+            cursor: pointer;
+        }
+
+
+        .tag-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            margin: 2px 4px 2px 0;
+            font-size: 13px;
+            font-weight: normal;
+            color: #000;
+            background-color: #fff;
+            border: 1px solid #0d6efd;
+            border-radius: 4px;
+            line-height: 1.2;
+        }
+
+        .tag-badge:hover {
+            background-color: #e9f1ff;
+        }
+
+
+        /* 固定表头样式 */
+        #company-table {
+            position: relative;
+            border-collapse: separate; /* 必须设置为separate */
+            border-spacing: 0;
+        }
+
+        #company-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background-color: #aaccff !important; /* 与您现有的标题背景色一致 */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, .1);
+        }
+
+        #company-table tbody {
+            position: relative;
+        }
+
+        /* 确保内容区域有滚动 */
+        .content-area {
+            overflow-y: auto;
+            height: calc(100vh - 150px); /* 根据实际布局调整 */
+        }
+
+
+        .company-cell {
+            font-size: 14px;
+            line-height: 1.5;
+            position: relative;
+        }
+
+
+        .company-cell .regi-details {
+            margin-top: 6px;
+            font-size: 12px;
+            color: #555;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        /* 确保左对齐 */
+        .company-cell .regi-details div {
+            text-align: left;
+            text-indent: 0;
+            margin: 0;
+            padding: 0;
+        }
+
+        .unknown {
+            color: #999;
+            font-style: italic;
+        }
+
+        .label {
+            color: #007bff;
+            font-weight: bold;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+
+/* 覆盖所有心态按钮样式 */
+
+
+.btn-group.btn-group-sm[role="group"] {
+    width: 210px; /* 固定总宽度 */
+    display: inline-flex;
+    justify-content: space-between;
+}
+
+/* 单个按钮固定宽度 */
+.btn-group-sm > .btn {
+    width: 60px; /* 210/3 - 间距 */
+    min-width: 60px;
+    text-align: center;
+    padding: 0.25rem 0.5rem;
+    flex-grow: 0; /* 禁止拉伸 */
+}
+
+
+
+
+.btn-outline-primary,
+.btn-outline-success,
+.btn-outline-info {
+    border-color: #4ca1ea !important;
+    color: #4ca1ea !important;
+}
+
+/* 覆盖所有选中状态 */
+.btn-check:checked + .btn-outline-primary,
+.btn-check:checked + .btn-outline-success,
+.btn-check:checked + .btn-outline-info {
+    background-color: #4ca1ea !important;
+    color: white !important;
+}
+
+/* 统一悬停效果 */
+.btn-outline-primary:hover,
+.btn-outline-success:hover,
+.btn-outline-info:hover {
+    background-color: rgba(13, 110, 253, 0.1) !important;
+}
+
+
+
+
+
+
+    </style>
+    <script>
+
+        document.addEventListener('DOMContentLoaded', function () {
+            var currentUserId = "{{ current_user_id }}";
+            if (currentUserId) {
+                localStorage.setItem("current_user_id", currentUserId);
+                console.log("Current User ID stored in localStorage:", currentUserId);
+            } else {
+                console.warn("current_user_id is not provided from the backend.");
+            }
+
+            const modal = new bootstrap.Modal(document.getElementById('mprogressModal'));
+            const timelineModal = new bootstrap.Modal(document.getElementById('timelineModal'));
+
+            document.querySelectorAll('.edit-link, .edit-button').forEach(function (element) {
+                element.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    const id = this.getAttribute('data-id');
+                    console.log("id", id)
+                    const accountStatus = parseInt(this.getAttribute('data-account-status'));
+                    const description = this.getAttribute('data-description');
+                    console.log("description", description);
+                    const history_hdescription = this.getAttribute('data-history-description');
+
+                    // 检查 description 是否为 null 或 undefined
+                    if (description === 'None' || description == '') {
+                        console.log("ifdescription", description);
+                        console.log(typeof description);
+                        document.getElementById('remark').value = '';
+                    } else {
+                        document.getElementById('remark').innerHTML = description;
+                    }
+
+
+                    document.getElementById('id').value = id;
+
+
+                    // Filter the options based on accountStatus
+                    const progressStateSelect = document.getElementById('progress_state');
+                    progressStateSelect.innerHTML = '';  // 清空现有选项
+
+                    // 重新添加所有原始选项
+                    const originalOptions = [
+                        {value: '1', text: '初步沟通'},
+                        {value: '3', text: '直连'},
+                        {value: '4', text: '转售后'},
+                        {#{value: '5', text: '复盘'},#}
+                        {value: '6', text: '放弃'},
+                        {#{value: '7', text: '重点跟踪'},#}
+
+                        // {#{value: '5', text: '试用期间'},#}
+                        // {#{value: '6', text: '到期付费'}#}
+                    ];
+
+                    originalOptions.forEach(option => {
+                        const opt = document.createElement('option');
+                        opt.value = option.value;
+                        opt.textContent = option.text;
+                        progressStateSelect.appendChild(opt);
+                    });
+
+
+                    const options = Array.from(progressStateSelect.options);
+                    console.log("options", options)
+                    progressStateSelect.innerHTML = '';  // Clear existing options
+                    clonedOption = null;
+
+
+                    options.forEach(option => {
+
+                        console.log("option.value", option.value)
+                        if (parseInt(option.value) >= parseInt(accountStatus) ||
+                            (parseInt(accountStatus) === 5 && option.value === '4') || (parseInt(accountStatus) === 6 && option.value === '4') || (parseInt(accountStatus) === 7 && option.value === '4') ||
+                            option.value === '') {
+                            const clonedOption = option.cloneNode(true);
+                            progressStateSelect.appendChild(clonedOption);
+                        }
+
+                    });
+
+                    // Set the selected value
+                    console.log("accountStatus", accountStatus);
+                    progressStateSelect.value = accountStatus;
+
+                    modal.show();
+
+
+                });
+            });
+
+            document.querySelectorAll('.timeline-link').forEach(function (element) {
+                element.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    const stepOneContent = this.getAttribute('data-step_one');
+                    // {#const steptwoContent = this.getAttribute('data-step_two');#}
+                    const stepthreeContent = this.getAttribute('data-step_three');
+                    const stepfourContent = this.getAttribute('data-step_four');
+                    // {#const stepfiveContent = this.getAttribute('data-step_five');#}
+                    // {#const stepsixContent = this.getAttribute('data-step_six');#}
+
+                    const stepOneContent_g = stepOneContent !== 'None' ? `<span style="color: blue;">初步沟通</span>   ---------------------------------------<br><br>${stepOneContent}` : `<span style="color: blue;">初步沟通</span>------------------------------------------<br><br>`
+                    // {#const steptwoContent_g = steptwoContent !== 'None' ? `<span style="color: blue;">注册</span>------------------------------<br><br>${steptwoContent}` : `<span style="color: blue;">注册</span>------------------------------<br><br>`#}
+                    const stepthreeContent_g = stepthreeContent !== 'None' ? `<span style="color: blue;">直连</span>------------------------------------------<br><br>${stepthreeContent}` : `<span style="color: blue;">直连</span>----------------------------------------------<br><br>`
+                    const stepfourContent_g = stepfourContent !== 'None' ? `<span style="color: blue;">转售后</span><br><br>${stepfourContent}` : `<span style="color: blue;">转售后</span><br><br>`
+                    // {#const stepfiveContent_g = stepfiveContent !== 'None' ? `<span style="color: blue;">试用期间</span>----------------------<br><br>${stepfiveContent}` : `<span style="color: blue;">试用期间</span>----------------------<br><br>`#}
+                    // {#const stepsixContent_g = stepsixContent !== 'None' ? `<span style="color: blue;">到期付费</span><br><br>${stepsixContent}` : `<span style="color: blue;">到期付费</span><br><br>`#}
+
+
+                    // 设置 innerHTML
+
+                    document.getElementById('step-one-content').innerHTML = stepOneContent_g !== 'None' ? stepOneContent_g : '';
+                    // {#document.getElementById('step-two-content').innerHTML = steptwoContent_g !== 'None' ? steptwoContent_g : '';#}
+                    document.getElementById('step-three-content').innerHTML = stepthreeContent_g !== 'None' ? stepthreeContent_g : '';
+                    document.getElementById('step-four-content').innerHTML = stepfourContent_g !== 'None' ? stepfourContent_g : '';
+                    // {#document.getElementById('step-five-content').innerHTML = stepfiveContent_g !== 'None' ? stepfiveContent_g : '';#}
+                    // {#document.getElementById('step-six-content').innerHTML = stepsixContent_g !== 'None' ? stepsixContent_g : '';#}
+
+                    timelineModal.show();
+                });
+            });
+
+            document.getElementById('editForm').addEventListener('submit', function (event) {
+                event.preventDefault();
+                const form = this;
+                const formData = new FormData(form);
+
+                fetch('/do_presales_progress', {  // 替换为你的实际端点URL
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            console.log("响应成功")
+                            showCopySuccessToast();
+                            location.reload();
+                        } else {
+                            alert('保存失败：' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('保存失败：请检查网络连接');
+                    });
+            });
+
+            // 获取所有的单选按钮
+            var radioButtons = document.querySelectorAll('.btn-group.right-align.scale-search input[type="radio"]');
+            const hiddenBtnradio = document.getElementById('hidden_btnradio');
+            const persaler_list_value = "{{ persaler_list_value }}";  // 从模板获取值
+
+            // 设置 hiddenBtnradio 的值
+            hiddenBtnradio.value = persaler_list_value;
+            const btnradio1 = document.getElementById('btnradio1');
+            const btnradio2 = document.getElementById('btnradio2');
+            const btnradio3 = document.getElementById('btnradio3');
+            const btnradio4 = document.getElementById('btnradio4');
+
+            // 为每个单选按钮添加事件监听器
+            radioButtons.forEach(function (button) {
+                button.addEventListener('change', function () {
+                    var selectedValue = this.id;  // 获取选中的单选按钮的ID
+                    console.log("发送到服务器的请求:", selectedValue);
+                    const formData = new FormData();
+                    formData.append('selectedValue', selectedValue);
+                    fetch('/update_presales_scale', {
+                        method: 'POST',
+                        body: formData
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log(data);
+                            if (data.success) {
+                                // 成功后，重定向到客服协助跟进表页面
+                                window.location.href = "{{ url_for('main.presales_progress') }}";
+                            }
+                        })
+                        .catch((error) => {
+                            console.error('Error:', error);
+                        });
+                });
+            });
+
+
+            btnradio1.addEventListener('change', function () {
+                if (this.checked) {
+                    hiddenBtnradio.value = '';
+                }
+            });
+
+            btnradio2.addEventListener('change', function () {
+                if (this.checked) {
+                    hiddenBtnradio.value = 'w';
+                }
+            });
+
+            btnradio3.addEventListener('change', function () {
+                if (this.checked) {
+                    hiddenBtnradio.value = 's';
+                }
+            });
+
+            btnradio4.addEventListener('change', function () {
+                if (this.checked) {
+                    hiddenBtnradio.value = 'o';
+                }
+            });
+
+        });
+
+
+        function showCopySuccessToast() {
+            console.log("showCopySuccessToast")
+            var toastDiv = document.createElement('div');
+            toastDiv.textContent = '已提交成功';
+            toastDiv.style.position = 'fixed';
+            toastDiv.style.top = '10%';
+            toastDiv.style.left = '50%';
+            toastDiv.style.transform = 'translateX(-50%)';
+            toastDiv.style.backgroundColor = '#f8d7da';
+            toastDiv.style.color = '#721c24';
+            toastDiv.style.padding = '10px';
+            toastDiv.style.borderRadius = '5px';
+            toastDiv.style.zIndex = '1000';
+            toastDiv.style.minWidth = '250px';
+            toastDiv.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
+            document.body.appendChild(toastDiv);
+            // 移除提示信息
+            setTimeout(function () {
+                document.body.removeChild(toastDiv);
+            }, 2000);
+        }
+
+        $(function () {
+            var locale = {
+                "format": 'YYYY-MM-DD',
+                "separator": " - ",
+                "applyLabel": "确定",
+                "cancelLabel": "取消",
+                "fromLabel": "起始时间",
+                "toLabel": "结束时间'",
+                "customRangeLabel": "自定义",
+                "weekLabel": "W",
+                "daysOfWeek": ["日", "一", "二", "三", "四", "五", "六"],
+                "monthNames": ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"],
+                "firstDay": 1
+            };
+
+            $('#demo').daterangepicker({
+                'locale': locale,
+                ranges: {
+                    '今日': [moment(), moment()],
+                    '昨日': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+                    '最近7日': [moment().subtract(6, 'days'), moment()],
+                    '最近30日': [moment().subtract(29, 'days'), moment()],
+                    '本月': [moment().startOf('month'), moment().endOf('month')],
+                    '上月': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month')
+                        .endOf('month')
+                    ]
+                },
+                "alwaysShowCalendars": true,
+                "startDate": new Date(),
+                "endDate": new Date(),
+                "opens": "right",
+            }, function (start, end, label) {
+                console.log('New date range selected: ' + start.format('YYYY-MM-DD') + ' to ' + end.format('YYYY-MM-DD') + ' (predefined range: ' + label + ')');
+            });
+        })
+
+        $(document).ready(function () {
+            $('[data-bs-toggle="tooltip"]').tooltip();
+        });
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // 初始化所有的 Tooltip
+            const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+            const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+
+            // 添加点击事件监听器
+            const editableCells = document.querySelectorAll('.editable-cell');
+            editableCells.forEach(cell => {
+                let isEditing = false; // 标志变量，用于跟踪单元格是否处于编辑状态
+
+                cell.addEventListener('click', function () {
+                    if (!isEditing) {
+                        const originalValue = this.textContent;
+                        const input = document.createElement('input');
+                        input.type = 'text';
+                        input.value = originalValue;
+                        input.classList.add('form-control');
+
+
+                        this.innerHTML = '';
+                        this.appendChild(input);
+
+                        input.focus();
+
+                        // 设置光标位置到内容后面
+                        input.setSelectionRange(originalValue.length, originalValue.length);
+
+                        // 添加双击事件监听器
+                        input.addEventListener('dblclick', function (event) {
+                            event.preventDefault(); // 阻止默认行为（选中全部内容）
+                        });
+
+                        isEditing = true; // 设置为编辑状态
+
+                        input.addEventListener('blur', function () {
+                            const newValue = this.value.trim();
+                            this.parentNode.innerHTML = newValue;
+
+                            // 发送 AJAX 请求保存到数据库
+                            saveToDatabase(cell, newValue);
+
+                            isEditing = false; // 重置编辑状态
+                        });
+                    }
+                });
+            });
+
+            // 发送 AJAX 请求保存到数据库
+            function saveToDatabase(cell, value) {
+                const taskId = cell.getAttribute('data-task-id');
+                const column = cell.getAttribute('data-column');
+
+                fetch('/save_contact', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        task_id: taskId,
+                        column: column,
+                        value: value
+                    })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            console.log('保存成功');
+                        } else {
+                            console.error('保存失败');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('请求失败', error);
+                    });
+            }
+        });
+
+
+
+
+
+
+
+
+        $(document).ready(function () {
+            // 判断 data_search 是否为空字符串
+            var data_search = "{{ data_search|default('') }}";
+            if (data_search === "") {
+                // 如果 data_search 为空，清空 #demo 的值
+                $('#demo').val('');
+            } else {
+                // 如果 data_search 不为空，设置 #demo 的值为 data_search
+                $('#demo').val(data_search);
+            }
+
+            // 可选：调试输出
+            console.log('data_search:', data_search);
+            {#$('#demo').val('');#}
+        });
+
+
+
+        function parseXinRemarkForDisplay(displayText) {
+    const defaultResult = { yiwu: '', goutong: '', nengli: '' };
+    if (!displayText || typeof displayText !== 'string') return defaultResult;
+
+    try {
+        const lines = displayText.split('\n');
+        console.log('displayText:', lines);
+
+        console.log("extractValue",extractValue(lines, '意愿：'),)
+        return {
+            yiwu: extractValue(lines, '意愿：'),
+            goutong: extractValue(lines, '沟通：'),
+            nengli: extractValue(lines, '能力：')
+        };
+    } catch (e) {
+        console.error('解析心态备注失败:', e);
+        return defaultResult;
+    }
+}
+
+function extractValue(lines, prefix) {
+    if (!Array.isArray(lines)) return '';
+    const line = lines.find(l => l && l.includes(prefix));
+    return line ? line.replace(prefix, '').trim() : '';
+}
+
+
+
+        $(document).ready(function () {
+            // 初始化模态对话框中的数据
+            $('.baseedit-button').on('click', function() {
+    // 获取所有数据属性
+    var taskId = $(this).data('id');
+    var companyId = $(this).data('company');
+    var contact = $(this).data('contact');
+    var xin_remark = $(this).data('xin_remark'); // 格式应为"中,一般,弱"
+    var yetai_remark = $(this).data('yetai_remark');
+
+    console.log('Task ID:', taskId);
+    console.log('Company ID:', companyId);
+    console.log('Contact:', contact);
+    console.log('Xin Remark:', xin_remark); // 调试输出心态值
+
+    const parsedValues = parseXinRemarkForDisplay(xin_remark);
+    console.log('parsedValues:', parsedValues);
+
+    // 使用 Bootstrap 的 shown.bs.modal 事件
+    $('#baseModal').on('shown.bs.modal', function() {
+        // 基础信息填充
+        $('#id').val(taskId);
+        $('#company_id').val(companyId);
+        $('#contact').val(contact);
+        $('#yetai_remark').val(yetai_remark);
+
+        // 心态选项回显（关键修正部分）
+        $('input[name^="xin_"]').prop('checked', false);
+
+        if (parsedValues.yiwu) {
+            console.log('yiwu:', parsedValues.yiwu);
+            $(`input[name="xin_yiwu"][value="${parsedValues.yiwu}"]`).prop('checked', true);
+            }
+        if (parsedValues.goutong) {
+            $(`input[name="xin_goutong"][value="${parsedValues.goutong}"]`).prop('checked', true);
+        }
+        if (parsedValues.nengli) {
+            $(`input[name="xin_nengli"][value="${parsedValues.nengli}"]`).prop('checked', true);
+        }
+
+    });
+});
+
+            // 表单提交处理
+            $('#baseeditForm').on('submit', function (event) {
+                event.preventDefault(); // 阻止表单默认提交行为
+                // 获取选中的值
+    const yiwu = $('input[name="xin_yiwu"]:checked').val() || '';
+    const goutong = $('input[name="xin_goutong"]:checked').val() || '';
+    const nengli = $('input[name="xin_nengli"]:checked').val() || '';
+
+    // 组合成逗号分隔的字符串
+    const xinTaiValue = [yiwu, goutong, nengli].join(',');
+
+    // 设置到隐藏字段
+    $('#xin_remark').val(xinTaiValue);
+                // 获取表单数据
+                var formData = $(this).serialize();
+
+                // 获取 taskId 并添加到 formData 中
+                var taskId = $('#id').val();
+                formData += '&taskId=' + encodeURIComponent(taskId);
+
+                console.log('Form Data:', formData); // 调试信息
+
+                $.ajax({
+                    url: '/save_contact', // 替换为你的后端API地址
+                    type: 'POST',
+                    data: formData,
+                    success: function (response) {
+                        // 处理成功响应
+                        // {#alert('数据提交成功');#}
+                        $('#baseModal').modal('hide'); // 关闭模态对话框
+                        // 刷新页面或更新DOM
+                        location.reload();
+                    },
+                    error: function (xhr, status, error) {
+                        // 处理错误响应
+                        console.error('数据提交失败:', xhr.responseText);
+                        $('#company_id_feedback').text(xhr.responseText); // 显示错误信息
+                    }
+                });
+            });
+        });
+
+        window.onload = function () {
+            var tableCont = document.querySelector('.table-container');
+
+            function scrollHandle(e) {
+                var scrollTop = this.scrollTop;
+                this.querySelector('thead').style.transform = 'translateY(' + scrollTop + 'px)';
+            }
+
+            tableCont.addEventListener('scroll', scrollHandle);
+        };
+
+    </script>
+
+    <script>
+ $(document).ready(function () {
+    // 只初始化业态输入框的提示功能
+    setupInputWithSuggestions("yetai_remark", "yetai_suggestions", "yetai_remark_history");
+
+    // 通用函数：为输入框设置提示功能
+    function setupInputWithSuggestions(inputId, suggestionsId, storageKey) {
+        const input = document.getElementById(inputId);
+        const suggestions = document.getElementById(suggestionsId);
+
+        // 从 localStorage 获取历史记录
+        let history = JSON.parse(localStorage.getItem(storageKey)) || [];
+
+        // 显示提示框
+        function showSuggestions(filteredHistory) {
+            if (filteredHistory.length > 0) {
+                suggestions.innerHTML = filteredHistory.map(item => `
+                    <div class="suggestion-item" data-value="${item}">${item}</div>
+                `).join("");
+                suggestions.style.display = "block";
+            } else {
+                suggestions.style.display = "none";
+            }
+        }
+
+        // 隐藏提示框
+        function hideSuggestions() {
+            suggestions.style.display = "none";
+        }
+
+        // 输入框输入事件
+        input.addEventListener("input", function () {
+            const value = input.value.trim();
+            if (value) {
+                // 过滤历史记录
+                const filteredHistory = history.filter(item => item.includes(value));
+                showSuggestions(filteredHistory);
+            } else {
+                hideSuggestions();
+            }
+        });
+
+        // 点击提示项
+        suggestions.addEventListener("click", function (event) {
+            if (event.target.classList.contains("suggestion-item")) {
+                input.value = event.target.getAttribute("data-value");
+                hideSuggestions();
+            }
+        });
+
+        // Tab 键复制
+        input.addEventListener("keydown", function (event) {
+            if (event.key === "Tab") {
+                event.preventDefault(); // 阻止默认 Tab 行为
+                const firstSuggestion = suggestions.querySelector(".suggestion-item");
+                if (firstSuggestion) {
+                    input.value = firstSuggestion.getAttribute("data-value");
+                    hideSuggestions();
+                }
+            }
+        });
+
+        // 点击页面其他区域隐藏提示框
+        document.addEventListener("click", function (event) {
+            if (event.target !== input && event.target !== suggestions) {
+                hideSuggestions();
+            }
+        });
+
+        // 按下 Esc 键隐藏提示框
+        document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") {
+                hideSuggestions();
+            }
+        });
+    }
+
+    // 为 baseeditForm 绑定提交事件
+    document.getElementById("baseeditForm").addEventListener("submit", function (event) {
+        // 只保存业态输入框的历史记录
+        const yetaiRemarkInput = document.getElementById("yetai_remark");
+        const yetaiRemarkValue = yetaiRemarkInput.value.trim();
+        if (yetaiRemarkValue) {
+            let yetaiHistory = JSON.parse(localStorage.getItem("yetai_remark_history")) || [];
+            if (!yetaiHistory.includes(yetaiRemarkValue)) {
+                yetaiHistory.push(yetaiRemarkValue);
+                localStorage.setItem("yetai_remark_history", JSON.stringify(yetaiHistory));
+            }
+        }
+    });
+});
+    </script>
+
+
+    <script>
+        // 全选/反选逻辑
+        document.getElementById('select-all').addEventListener('change', function () {
+            const checkboxes = document.querySelectorAll('.row-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = this.checked; // 设置每一行的复选框状态
+            });
+        });
+
+    </script>
+
+
+    <script>
+        document.getElementById('batch-claim-btn').addEventListener('click', function (event) {
+            event.preventDefault(); // 阻止默认行为（如跳转）
+
+            // 获取选中的任务 ID
+            const selectedIds = [];
+            const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+            checkboxes.forEach(checkbox => {
+                selectedIds.push(checkbox.value);
+            });
+
+            // 如果没有选中任何任务，提示用户
+            if (selectedIds.length === 0) {
+                alert('请至少选择一条记录！');
+                return;
+            }
+
+            // 弹出二次确认对话框
+            const isConfirmed = confirm(`您确定要批量认领选中的 ${selectedIds.length} 条记录吗？`);
+            if (!isConfirmed) {
+                return; // 用户取消操作
+            }
+
+            // 用户确认后，发送批量认领请求
+            fetch('{{ url_for("main.batch_claim_presales") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    {#'X-CSRFToken': '{{ csrf_token() }}' // 如果需要 CSRF 保护#}
+                },
+                body: JSON.stringify({task_ids: selectedIds})
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        {#alert('批量认领成功！');#}
+                        setTimeout(() => {
+                            console.log("1秒后执行");
+                        }, 1000);
+                        showCopySuccessToast("批量认领成功。。。。。。。。。。。。")
+                        window.location.reload(); // 刷新页面
+                    } else {
+                        alert('批量认领失败：' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('请求失败，请稍后重试。');
+                });
+        });
+
+
+        function showCopySuccessToast(textContent) {
+            console.log("showCopySuccessToast")
+            var toastDiv = document.createElement('div');
+            toastDiv.textContent = textContent;
+            toastDiv.style.position = 'fixed';
+            toastDiv.style.top = '10%';
+            toastDiv.style.left = '50%';
+            toastDiv.style.transform = 'translateX(-50%)';
+            toastDiv.style.backgroundColor = '#f8d7da';
+            toastDiv.style.color = '#721c24';
+            toastDiv.style.padding = '10px';
+            toastDiv.style.borderRadius = '5px';
+            toastDiv.style.zIndex = '1000';
+            toastDiv.style.minWidth = '250px';
+            toastDiv.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
+            document.body.appendChild(toastDiv);
+            // 移除提示信息
+            setTimeout(function () {
+                document.body.removeChild(toastDiv);
+            }, 5000);
+        }
+    </script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // 映射表（与后端一致）
+            const companyTypeMap = {
+                "homestay": "民宿",
+                "hotel": "酒店",
+                "youthHostel": "青旅"
+            };
+            const shopModeMap = {
+                "single": "单店",
+                "multiple": "多店"
+            };
+            const receptionMap = {
+                "N": "无",
+                "Y": "有"
+            };
+            const roleMap = {
+                "boss": "老板",
+                "manager": "店长",
+                "reception": "前台",
+                "housekeeper": "管家",
+                "finance": "财务",
+                "operation": "运营",
+                "proxyOperation": "代运营",
+                "other": "其它"
+            };
+
+            // 获取所有需要处理的单元格
+            const companyCells = document.querySelectorAll(".company-cell");
+
+            companyCells.forEach(cell => {
+                const regiInforStr = cell.getAttribute("data-regi-infor");
+                const companyName = cell.getAttribute("data-company") || "未知";
+
+
+                try {
+                    // 解析 JSON 字符串
+                    const regi = JSON.parse(regiInforStr);
+
+                    // 构建详细信息 HTML
+                    // ✅ 推荐：简单左对齐 + 微调样式
+                    const detailsHTML = `
+                    <div>主体：${companyTypeMap[regi.companyType] || "未知"}</div>
+                    <div>店铺：${shopModeMap[regi.shopMode] || "未知"}</div>
+                    <div>前台：${receptionMap[regi.reception] || "未知"}</div>
+                    <div>房间：${regi.roomCount || "未知"}</div>
+                    <div>城市：${regi.city || "未知"}</div>
+                    <div>身份：${roleMap[regi.role] || "未知"}</div>
+                `;
+
+                    const detailsContainer = cell.querySelector(".regi-details");
+                    detailsContainer.innerHTML = detailsHTML;
+
+                } catch (error) {
+                    console.error("解析 regi_infor 失败:", error, regiInforStr);
+                    {#const detailsContainer = cell.querySelector(".regi-details");#}
+                    {#detailsContainer.innerHTML = '<div>数据格式错误</div>';#}
+                }
+            });
+        });
+    </script>
+    <script>
+        // 标签映射关系：中文 -> 编号
+        const tagMap = {
+            '复盘': '1',
+            '重点跟踪': '2'
+        };
+
+        // 点击单元格显示下拉菜单
+        $(document).on('click', '.clickable-cell', function () {
+            const $cell = $(this);
+            const $menu = $cell.find('.dropdown-menu');
+
+            $('.dropdown-menu').not($menu).hide(); // 关闭其他菜单
+            $menu.toggle(); // 显示当前菜单
+        });
+
+        // 阻止点击复选框或菜单项导致菜单关闭
+        $(document).on('click', '.dropdown-menu *, .dropdown-menu', function (e) {
+            e.stopPropagation();
+        });
+
+        // 点击确定按钮后保存并关闭菜单
+        $(document).on('click', '.save-tags-btn', function (e) {
+            e.stopPropagation();
+
+            const cell = $(this).closest('.tags-cell');
+            const taskid = cell.data('taskid');
+
+            const selectedZhTags = [];
+            cell.find('.tag-checkbox:checked').each(function () {
+                selectedZhTags.push($(this).val()); // 获取的是中文值："复盘"、"重点跟踪"
+            });
+
+            // 转换为编号
+            const selectedEnTags = selectedZhTags.map(tag => tagMap[tag]);
+
+            const tagsString = selectedEnTags.join(','); // 拼接成字符串："1,2"
+
+            console.log("taskid", taskid);
+            console.log("tagsString", tagsString);
+
+            $.ajax({
+                url: '/save_tags',
+                method: 'POST',
+                data: {
+                    taskid: taskid,
+                    tags: tagsString
+                },
+                success: function (res) {
+                    if (res.status === 'success') {
+                        const displayDiv = cell.find('.tag-display').empty();
+                        if (selectedZhTags.length === 0) {
+                            displayDiv.append('<span class="text-muted"></span>');
+                        } else {
+                            selectedZhTags.forEach(function (label) {
+                                displayDiv.append(`<span class="tag-badge">${label}</span>`);
+                            });
+                        }
+
+                        cell.find('.dropdown-menu').hide(); // 保存后关闭菜单
+                        {#alert('保存成功！');#}
+                    }
+                },
+                error: function () {
+                    alert('保存失败，请重试');
+                }
+            });
+        });
+
+        // 点击外部区域关闭菜单
+        $(document).on('click', function (e) {
+            if (!$(e.target).closest('.dropdown-menu, .clickable-cell').length) {
+                $('.dropdown-menu').hide();
+            }
+        });
+    </script>
+    <script>
+        function checkPresalesBeforeClaim(taskid) {
+            // 先发起 AJAX 请求查询 presales 状态
+            fetch(`/check_presales?taskid=${taskid}`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log("presales", data.presales)
+                    console.log("username", data.username)
+                    if (data.presales && data.presales !== '0') {
+                        // 如果 presales 存在且不为 0，弹出二次确认
+                        const isConfirmed = confirm(
+                            `该任务已被认领（认领人：${data.username}），确定要覆盖认领吗？`
+                        );
+                        if (!isConfirmed) return; // 用户取消，不提交
+
+                        // 用户确认后，设置 confirmed=1
+                        document.getElementById(`confirmed_${taskid}`).value = '1';
+                    }
+                    // 提交表单
+                    document.getElementById(`claimForm_${taskid}`).submit();
+                })
+                .catch(error => console.error('Error:', error));
+        }
+    </script>
+
+
+
+{#<script>#}
+{#$(document).ready(function() {#}
+{#    // 当日数据刷新按钮点击事件#}
+{#    $('#refresh-today-btn').click(function() {#}
+{#        // 保存按钮原始HTML#}
+{#        const originalHtml = $(this).html();#}
+{##}
+{#        // 显示加载状态#}
+{#        $(this).html('<span class="spinner-border spinner-border-sm"></span> 刷新中...');#}
+{#        $(this).prop('disabled', true);#}
+{##}
+{#        // 获取今天的日期#}
+{#        const today = new Date();#}
+{#        const dateString = today.toISOString().split('T')[0];#}
+{##}
+{#        // 1. 先向后端发送刷新请求#}
+{#        $.ajax({#}
+{#            url: '/refresh_today_data', // 后端接口地址#}
+{#            type: 'POST',#}
+{#            contentType: 'application/json',#}
+{#            data: JSON.stringify({#}
+{#                date: dateString  // 发送当前日期如2025-10-14#}
+{#            }),#}
+{#            success: function(response) {#}
+{#                if (response.success) {#}
+{#                    // 2. 设置日期范围并提交表单#}
+{#                    $('#demo').val(dateString + ' - ' + dateString);#}
+{#                    $('#company-form').submit();#}
+{#                } else {#}
+{#                    alert('刷新失败: ' + (response.message || '未知错误'));#}
+{#                }#}
+{#            },#}
+{#            error: function(xhr) {#}
+{#                alert('请求失败: ' + (xhr.responseJSON?.message || xhr.statusText));#}
+{#            },#}
+{#            complete: function() {#}
+{#                // 恢复按钮状态#}
+{#                setTimeout(() => {#}
+{#                    $('#refresh-today-btn').html(originalHtml).prop('disabled', false);#}
+{#                }, 1000);#}
+{#            }#}
+{#        });#}
+{#    });#}
+{#</script>#}
+
+
+
+
+
+
+
+
+{% endblock %}

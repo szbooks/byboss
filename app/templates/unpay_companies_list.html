@@ -1,0 +1,719 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+    <div class="content-area">
+        <!-- 顶部操作栏 -->
+        <div class="d-flex align-items-center flex-wrap mb-3">
+            <!-- 查询表单 -->
+
+            <form id="company-form" action="{{ url_for('main.unpay_companies') }}" method="get" class="d-flex align-items-center mb-2 flex-grow-0">
+                {#    <div class="row">#}
+                <input type="text" class="input-group-text me-2" name="company_id" placeholder="输入公司ID" value="{{ request.args.get('company_id', '') }}">
+                <!-- Move the button inside the input group -->
+                <button type="submit" class="btn btn-outline-primary fixed-width-btn">查询</button>
+
+            </form>
+
+
+            <div class="col-md-12">
+                <p>记录总数: {{ total_count }}</p>
+            </div>
+
+
+            <table id="company-table" class="table table-striped table-bordered table-light table-hover">
+                <thead>
+                <tr>
+                    <th>公司ID</th>
+                    <th>公司名称</th>
+                    <th>账号状态</th><!-- 试用期，已付费，保号期，冻结期，紧急延期 -->
+                    <th>激活时间</th>
+                    <th>到期日</th>
+                    <th>房号数</th>
+                    <th>直连平台数</th>
+                    <th>直连账号数</th>
+                    <th>关联公司</th>
+                    <th>功能使用</th><!-- 房态同步，精确库存，入住，保洁，汇聊，房价，微店......-->
+                    <th>7日订单数</th>
+                    <th>最近登录</th>
+                    <th>入表日期</th>
+                    <th>用户描述</th>
+                    <th>需求规划</th>
+                    <th>更新日期</th>
+                    <th>处理时间</th>
+                    <th>操作</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for company  in results %}
+                    <tr>
+                        <td>{% if company.company_id %}{{ company.company_id }}{% else %}{{ "" }}{% endif %}</td>
+                        <td>{% if company.company_name %}{{ company.company_name }}{% else %}{{ "" }}{% endif %}</td>
+                        <td>
+                            {% if company.account_state == '1' %}
+                                <span class="status-pending">试用期</span>
+                            {% elif company.account_state == '2' %}
+                                已付费
+                            {% elif company.account_state == '3' %}
+                                保号期
+                            {% elif company.account_state == '4' %}
+                                冻结期
+                            {% elif company.account_state == '5' %}
+                                未激活
+                            {% else %}
+                                {{ "" }}
+                            {% endif %}
+                        </td>
+                        <td>{% if company.active_time %}{{ company.active_time }}{% else %}{{ "" }}{% endif %}</td>
+                        <td>{% if company.end_data %}{{ company.end_data }}{% else %}{{ "" }}{% endif %}</td>
+                        <td>{% if company.room_count %}{{ company.room_count }}{% else %}{{ 0 }}{% endif %}</td>
+                        <td>{% if company.platform_count %}{{ company.platform_count }}{% else %}{{ 0 }}{% endif %}</td>
+                        <td>{% if company.account_count %}{{ company.account_count }}{% else %}{{ 0 }}{% endif %}</td>
+                        <td>{% if company.affiliated_company %}{{ company.affiliated_company }}{% else %}{{ "" }}{% endif %}</td>
+                        <td>
+                            {% set functionality_names = ["房态同步", "精确库存", "办理入住", "开通入住", "保洁", "微店", "房价"] %}
+                            {% set enabled_functionalities = [] %}
+                            {% if company.used_modules %}
+                                {% for i in range(company.used_modules|length) %}
+                                    {% if company.used_modules[i] == '1' %}
+                                        {% if not (functionality_names[i]=='开通入住' and company.used_modules[i-1]=='1') %}
+                                            {#                                {% else %}#}
+                                            {% set _ = enabled_functionalities.append(functionality_names[i]) %}
+                                        {% endif %}
+                                    {% endif %}
+                                {% endfor %}
+                                {{ enabled_functionalities|join(', ') }}
+                            {% else %}
+                                {{ "" }}
+                            {% endif %}
+                        </td>
+                        <td>{% if company.recent_orders %}{{ company.recent_orders }}{% else %}{{ 0 }}{% endif %}</td>
+                        <td>{% if company.last_logon %}{{ company.last_logon }}{% else %}{{ "" }}{% endif %}</td>
+                        <td>{% if company.create_data %}{{ company.create_data[:10] }}{% else %}{{ "" }}{% endif %}</td>
+                        <td>{% if company.description %}{{ company.description }}{% else %}{{ "" }}{% endif %}</td>
+                        <td>{% if company.planning %}{{ company.planning }}{% else %}{{ "" }}{% endif %}</td>
+                        <td>{% if company.update_time %}{{ company.update_time }}{% else %}{{ "" }}{% endif %}</td>
+                        <td>{% if company.submit_time %}{{ company.submit_time }}{% else %}{{ "" }}{% endif %}</td>
+
+                        <td>
+                            <!-- Action button to trigger modal -->
+                            {#                        <a href="#" data-toggle="modal" data-target="#remarksModal{{ company.company_id }}" data-company-id="{{ company.company_id }}">处理</a>#}
+                            <a href="#" class="btn btn-primary open-modal" data-company-id="{{ company.company_id }}">处理1</a>
+                            {#                        <a href="#" class="open-modal" data-company-id="{{ company.company_id }}">处理1</a>#}
+
+
+                            <!-- Remarks Modal -->
+                            <div class="modal fade" id="remarksModal{{ company.company_id }}" tabindex="-1" aria-labelledby="remarksModalLabel{{ company.company_id }}" aria-hidden="true">
+                                <div class="modal-dialog modal-xl"> <!-- or modal-xl -->
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title" id="remarksModalLabel{{ company.company_id }}">处理备注({{ company.company_id }})</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <!-- Remarks form -->
+                                            <form id="remarksForm{{ company.company_id }}" action="{{ url_for('main.save_company_remarks') }}" method="post" class="mb-2">
+                                                <p class="text-start"><b>民宿基本情况</b></p>
+                                                <div class="container-fluid">
+                                                    <div class="row">
+                                                        <div class="row ">
+                                                            <div class="col">
+                                                                <div class="input-group input-group-lg">
+                                                                    <span class="input-group-text" id="inputGroup-sizing-lg"><p class="largeText">是否用过pms</p></span>
+                                                                    <input type="text" class="form-control" name="input_ispms" aria-label="Sizing example input"
+                                                                           aria-describedby="inputGroup-sizing-lg">
+                                                                </div>
+                                                            </div>
+                                                            <div class="col">
+                                                                <div class="input-group input-group-lg">
+                                                                    <span class="input-group-text" id="inputGroup-sizing-lg"><p class="largeText">直连平台</p></span>
+                                                                    <input type="text" class="form-control" name="input_direct" aria-label="Sizing example input"
+                                                                           aria-describedby="inputGroup-sizing-lg">
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="row ">
+                                                            <div class="col">
+                                                                <div class="input-group input-group-lg">
+                                                                    <span class="input-group-text" id="inputGroup-sizing-lg"><p class="largeText">房态同步</p></span>
+                                                                    <input type="text" class="form-control" name="input_syn" aria-label="Sizing example input" aria-describedby="inputGroup-sizing-lg">
+                                                                </div>
+                                                            </div>
+                                                            <div class="col">
+                                                                <div class="input-group input-group-lg">
+                                                                    <span class="input-group-text" id="inputGroup-sizing-lg"><p class="largeText">前台</p></span>
+                                                                    <input type="text" class="form-control" name="input_reception" aria-label="Sizing example input"
+                                                                           aria-describedby="inputGroup-sizing-lg">
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="row ">
+                                                            <div class="col">
+                                                                <div class="input-group input-group-lg">
+                                                                    <span class="input-group-text" id="inputGroup-sizing-lg"><p class="largeText">入住</p></span>
+                                                                    <input type="text" class="form-control" name="input_checkin" aria-label="Sizing example input"
+                                                                           aria-describedby="inputGroup-sizing-lg">
+                                                                </div>
+                                                            </div>
+                                                            <div class="col">
+                                                                <div class="input-group input-group-lg">
+                                                                    <span class="input-group-text" id="inputGroup-sizing-lg"><p class="largeText">押金</p></span>
+                                                                    <input type="text" class="form-control" name="input_deposit" aria-label="Sizing example input"
+                                                                           aria-describedby="inputGroup-sizing-lg">
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="row ">
+                                                            <div class="col">
+                                                                <div class="input-group input-group-lg">
+                                                                    <span class="input-group-text" id="inputGroup-sizing-lg"><p class="largeText">保洁</p></span>
+                                                                    <input type="text" class="form-control" name="input_cleaning" aria-label="Sizing example input"
+                                                                           aria-describedby="inputGroup-sizing-lg">
+                                                                </div>
+                                                            </div>
+                                                            <div class="col">
+                                                                <div class="input-group input-group-lg">
+                                                                    <span class="input-group-text" id="inputGroup-sizing-lg"><p class="largeText">改价</p></span>
+                                                                    <input type="text" class="form-control" name="input_price" aria-label="Sizing example input"
+                                                                           aria-describedby="inputGroup-sizing-lg">
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="row 3">
+                                                            <div class="col">
+                                                                <div class="input-group input-group-lg">
+                                                                    <span class="input-group-text" id="inputGroup-sizing-lg"><p class="largeText">聊天</p></span>
+                                                                    <input type="text" class="form-control" name="input_chat" aria-label="Sizing example input" aria-describedby="inputGroup-sizing-lg">
+                                                                </div>
+                                                            </div>
+                                                            <div class="col">
+                                                                <div class="input-group input-group-lg">
+                                                                    <span class="input-group-text" id="inputGroup-sizing-lg"><p class="largeText">评价</p></span>
+                                                                    <input type="text" class="form-control" name="input_evaluate" aria-label="Sizing example input"
+                                                                           aria-describedby="inputGroup-sizing-lg">
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="row">
+                                                            <div class="col">
+                                                                <div class="input-group input-group-lg">
+                                                                    <span class="input-group-text" id="inputGroup-sizing-lg"><p class="largeText">回头客</p></span>
+                                                                    <input type="text" class="form-control" name="input_recustomer" aria-label="Sizing example input"
+                                                                           aria-describedby="inputGroup-sizing-lg">
+                                                                </div>
+                                                            </div>
+                                                            <div class="col">
+                                                                <div class="input-group input-group-lg">
+                                                                    <span class="input-group-text" id="inputGroup-sizing-lg"><p class="largeText">投资人</p></span>
+                                                                    <input type="text" class="form-control" name="input_einvestor" aria-label="Sizing example input"
+                                                                           aria-describedby="inputGroup-sizing-lg">
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="row  mb-3">
+                                                            <div class="col">
+                                                                <div class="input-group input-group-lg">
+                                                                    <span class="input-group-text" id="inputGroup-sizing-lg"><p class="largeText">财务></p></span>
+                                                                    <input type="text" class="form-control" name="input_finance" aria-label="Sizing example input"
+                                                                           aria-describedby="inputGroup-sizing-lg">
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-12">
+                                                            <div class="row">
+                                                                <div class="col-md-6">
+
+                                                                    <div class="dropdown">
+                                                                        <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown">
+                                                                            必选项
+                                                                        </button>
+                                                                        <ul class="dropdown-menu dropdown-menu-left" id="leftContainer_{{ company.company_id }}">
+                                                                            <li>
+                                                                                <a class="dropdown-item" href="###">
+                                                                                    <div class="form-check">
+                                                                                        <input type="checkbox" class="form-check-input" id="check1" name="option1" value="">
+                                                                                        <label class="form-check-label" for="check1">直连</label>
+                                                                                        {#                                                                                    <input type="checkbox" class="form-check-input" id="check1_{{ company.company_id }}" name="option1" value="">#}
+                                                                                        {#                                                                                    <label class="form-check-label" for="check1_{{ company.company_id }}">直连</label>#}
+                                                                                    </div>
+                                                                                </a>
+                                                                            </li>
+                                                                            <li>
+                                                                                <a class="dropdown-item" href="###">
+                                                                                    <div class="form-check">
+                                                                                        <input type="checkbox" class="form-check-input" id="check2" name="option2" value="something">
+                                                                                        <label class="form-check-label" for="check2">房态</label>
+                                                                                    </div>
+                                                                                </a>
+                                                                            </li>
+                                                                            <li>
+                                                                                <a class="dropdown-item" href="###">
+                                                                                    <div class="form-check">
+                                                                                        <input type="checkbox" class="form-check-input" id="check3" name="option3" value="something">
+                                                                                        <label class="form-check-label" for="check3">入住</label>
+                                                                                    </div>
+                                                                                </a>
+                                                                            </li>
+                                                                            <a class="dropdown-item" href="###">
+                                                                                <div class="form-check">
+                                                                                    <input type="checkbox" class="form-check-input" id="check4" name="option4" value="something">
+                                                                                    <label class="form-check-label" for="check4">保洁</label>
+                                                                                </div>
+                                                                            </a>
+                                                                            </li>
+                                                                        </ul>
+                                                                    </div>
+
+                                                                    <div class="mt-3">
+                                                                        <label for="generatedInputLeft_{{ company.company_id }}" class="form-label">必选项列表：</label>
+                                                                        <div id="generatedInputLeft_{{ company.company_id }}"></div>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="col-md-6">
+
+                                                                    <div class="dropdown">
+                                                                        <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown">
+                                                                            可选项
+                                                                        </button>
+                                                                        <ul class="dropdown-menu dropdown-menu-right" id="rightContainer_{{ company.company_id }}">
+                                                                            <a class="dropdown-item" href="###">
+                                                                                <div class="form-check">
+                                                                                    <input type="checkbox" class="form-check-input" id="optional_check1" name="option1" value="something">
+                                                                                    <label class="form-check-label" for="check1">直连</label>
+                                                                                    {#                                                                                <input type="checkbox" class="form-check-input" id="optional_check1_{{ company.company_id }}" name="option1" value="something">#}
+                                                                                    {#                                                                                <label class="form-check-label" for="check1_{{ company.company_id }}">直连</label>#}
+                                                                                </div>
+                                                                            </a>
+                                                                            </li>
+                                                                            <li>
+                                                                                <a class="dropdown-item" href="###">
+                                                                                    <div class="form-check">
+                                                                                        <input type="checkbox" class="form-check-input" id="optional_check2" name="option2" value="something">
+                                                                                        <label class="form-check-label" for="check2">房态</label>
+                                                                                    </div>
+                                                                                </a>
+                                                                            </li>
+                                                                            <li>
+                                                                                <a class="dropdown-item" href="###">
+                                                                                    <div class="form-check">
+                                                                                        <input type="checkbox" class="form-check-input" id="optional_check3" name="option3" value="something">
+                                                                                        <label class="form-check-label" for="check3">入住</label>
+                                                                                    </div>
+                                                                                </a>
+                                                                            </li>
+                                                                            <a class="dropdown-item" href="###">
+                                                                                <div class="form-check">
+                                                                                    <input type="checkbox" class="form-check-input" id="optional_check4" name="option4" value="something">
+                                                                                    <label class="form-check-label" for="check4">保洁</label>
+                                                                                </div>
+                                                                            </a>
+                                                                            </li>
+                                                                        </ul>
+                                                                    </div>
+
+                                                                    <div class="mt-3">
+                                                                        <label for="generatedInputRight_{{ company.company_id }}" class="form-label">可选项列表：</label>
+                                                                        <div id="generatedInputRight_{{ company.company_id }}"></div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <button type="submit" class="btn btn-primary">保存备注</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            <div class="modal fade" id="loadingModal" tabindex="-1" aria-labelledby="loadingModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="loadingModalLabel">处理中......</h5>
+                        </div>
+                        <div class="modal-body">
+                            <!-- 加载动画内容，这里可以使用第三方库或者自定义的加载动画 -->
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 底部分页控件 -->
+            <nav aria-label="Page navigation">
+                <ul class="pagination">
+                    {% for page in page_numbers %}
+                        {% if page == '...' %}
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% else %}
+                            <li class="page-item {% if page == current_page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('main.unpay_companies', page=page) }}">{{ page }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+            </nav>
+
+
+        </div>
+    </div>
+    <script>
+        var currentPage;
+        var currentCompanyId;  // 新增的变量
+
+        $(document).ready(function () {
+            $('.open-modal').click(function () {
+                currentPage = "{{ current_page }}";
+                currentCompanyId = $(this).data('company-id');  // 存储 companyId
+                var companyId = currentCompanyId;
+                {#$('.input-group').find('input[type="text"]').val('');#}
+                $('.input-group').find('input[type="text"].form-control[name^="input_"]').val('');
+                // 获取当前行对应的左右容器
+                {#var leftContainer = $('#generatedInputLeft_' + currentCompanyId);#}
+                {#var rightContainer = $('#generatedInputRight_' + currentCompanyId);#}
+                {##}
+                {#// 清空左右容器中的内容#}
+                {#leftContainer.empty();#}
+                {#rightContainer.empty();#}
+
+                // Fetch existing data via AJAX and populate the modal
+                $.ajax({
+                    url: "{{ url_for('main.get_company_remarks', company_id='')}}" + companyId,
+                    type: 'GET',
+                    success: function (data) {
+                        // Check if data.remarks is not empty
+                        console.log('Debug message:', data.basic_info);
+
+                        if (data.basic_info) {
+                            var basic_info = JSON.parse(data.basic_info);
+                            $('input[name="input_ispms"]').val(basic_info.input_ispms);
+                            $('input[name="input_direct"]').val(basic_info.input_direct);
+                            $('input[name="input_syn"]').val(basic_info.input_syn);
+                            $('input[name="input_reception"]').val(basic_info.input_reception);
+                            $('input[name="input_checkin"]').val(basic_info.input_checkin);
+                            $('input[name="input_cleaning"]').val(basic_info.input_cleaning);
+                            $('input[name="input_price"]').val(basic_info.input_price);
+                            $('input[name="input_deposit"]').val(basic_info.input_deposit);
+                            $('input[name="input_chat"]').val(basic_info.input_chat);
+                            $('input[name="input_evaluate"]').val(basic_info.input_evaluate);
+                            $('input[name="input_recustomer"]').val(basic_info.input_recustomer);
+                            // Populate other fields if needed
+                        } else {
+                            console.error('No remarks found for the company.');
+                        }
+                        console.log('period_target:', data.period_target);
+                        if (data.period_target.length > 0) {
+                            var period_target = JSON.parse(data.period_target);
+                            console.log('Debug message:', data.period_target);
+                            if ('input_check1' in period_target) {
+                                if ($('#check1').is(':checked')) {
+                                    console.log('#check1 被选中了');
+                                } else {
+                                    console.log('#check1 没有被选中');
+                                    $('#check1').trigger('click');
+                                    $('input[name="input_check1"]').val(period_target.input_check1);
+                                }
+                            }
+                            if ('input_check2' in period_target) {
+                                if ($('#check2').is(':checked')) {
+                                    console.log('#check1 被选中了');
+                                } else {
+                                    console.log('#check1 没有被选中');
+                                    $('#check2').trigger('click');
+                                    $('input[name="input_check2"]').val(period_target.input_check2);
+                                }
+                            }
+                            if ('input_check3' in period_target) {
+                                if ($('#check3').is(':checked')) {
+                                    console.log('#check3 被选中了');
+                                } else {
+                                    console.log('#check3 没有被选中');
+                                    $('#check3').trigger('click');
+                                    $('input[name="input_check3"]').val(period_target.input_check3);
+                                }
+                            }
+                            if ('input_check4' in period_target) {
+                                if ($('#check4').is(':checked')) {
+                                    console.log('#check4 被选中了');
+                                } else {
+                                    console.log('#check1 没有被选中');
+                                    $('#check4').trigger('click');
+                                    $('input[name="input_check4"]').val(period_target.input_check4);
+                                }
+                            }
+
+                            if ('input_optional_check1' in period_target) {
+                                if ($('#optional_check1').is(':checked')) {
+                                    console.log('#check1 被选中了');
+                                } else {
+                                    console.log('#check1 没有被选中');
+                                    $('#optional_check1').trigger('click');
+                                    $('input[name="input_optional_check1"]').val(period_target.input_optional_check1);
+                                }
+                            }
+                            if ('input_optional_check2' in period_target) {
+                                if ($('#optional_check2').is(':checked')) {
+                                    console.log('#check1 被选中了');
+                                } else {
+                                    console.log('#check1 没有被选中');
+                                    $('#optional_check2').trigger('click');
+                                    $('input[name="input_optional_check2"]').val(period_target.input_optional_check2);
+                                }
+                            }
+                            if ('input_optional_check3' in period_target) {
+                                if ($('#optional_check3').is(':checked')) {
+                                    console.log('#check1 被选中了');
+                                } else {
+                                    console.log('#check1 没有被选中');
+                                    $('#optional_check3').trigger('click');
+                                    $('input[name="input_optional_check3"]').val(period_target.input_optional_check3);
+                                }
+                            }
+                            if ('input_optional_check4' in period_target) {
+                                if ($('#optional_check4').is(':checked')) {
+                                    console.log('#check4 被选中了');
+                                } else {
+                                    console.log('#check4 没有被选中');
+                                    $('#optional_check4').trigger('click');
+                                    $('input[name="input_optional_check4"]').val(period_target.input_optional_check4);
+                                }
+                            }
+
+                            // Populate other fields if needed
+                        }
+                    }
+                });
+
+                // Set the company_id input value before serializing the form data
+                $('#companyIdInput').val(companyId);
+                $('#remarksModal' + companyId).modal('show');
+            });
+
+            // 表单提交事件在外部处理
+            $('form[id^="remarksForm"]').submit(function (e) {
+                // Include the current page number in the form data
+                $('#remarksModal' + currentCompanyId).modal('hide');
+                e.preventDefault(); // 阻止表单默认提交行为
+
+                // 获取输入框的值
+                var ispmsValue = $('input[name="input_ispms"]').val();
+                var directValue = $('input[name="input_direct"]').val();
+                var synValue = $('input[name="input_syn"]').val();
+                var receptionValue = $('input[name="input_reception"]').val();
+                var checkinValue = $('input[name="input_checkin"]').val();
+                var depositValue = $('input[name="input_deposit"]').val();
+                var cleaningValue = $('input[name="input_cleaning"]').val();
+                var priceValue = $('input[name="input_price"]').val();
+                var chatValue = $('input[name="input_chat"]').val();
+                var evaluateValue = $('input[name="input_evaluate"]').val();
+                var recustomerValue = $('input[name="input_recustomer"]').val();
+                var einvestorValue = $('input[name="input_einvestor"]').val();
+                var financeValue = $('input[name="input_finance"]').val();
+
+                alert("ispmsValue:" + ispmsValue);
+
+// 组装表单数据
+                var formData = {
+                    'company_id': currentCompanyId,
+                    'current_page': currentPage,
+                    'input_ispms': ispmsValue,
+                    'input_direct': directValue,
+                    'input_syn': synValue,
+                    'input_reception': receptionValue,
+                    'input_checkin': checkinValue,
+                    'input_deposit': depositValue,
+                    'input_cleaning': cleaningValue,
+                    'input_price': priceValue,
+                    'input_chat': chatValue,
+                    'input_evaluate': evaluateValue,
+                    'input_recustomer': recustomerValue,
+                    'input_einvestor': einvestorValue,
+                    'input_finance': financeValue
+                };
+
+                $('#generatedInputLeft_' + currentCompanyId + ' input[type="text"]').each(function () {
+                    var inputName = $(this).attr('name');
+                    var inputValue = $(this).val();
+                    console.log("Input Name:", inputName);
+                    console.log("Input Value:", inputValue);
+                    formData[inputName] = inputValue;
+                });
+
+                $('#generatedInputRight_' + currentCompanyId + ' input[type="text"]').each(function () {
+                    var inputName = $(this).attr('name');
+                    var inputValue = $(this).val();
+                    console.log("Input Name:", inputName);
+                    console.log("Input Value:", inputValue);
+                    formData[inputName] = inputValue;
+                });
+
+
+                $('#loadingModal').modal('show');
+                // AJAX request to save company remarks
+                console.log(formData);
+                $.ajax({
+                    url: "/save_company_remarks",
+                    type: 'POST',
+                    data: formData,  // Serialize the form data
+
+                    success: function (response) {
+                        // Handle the success response if needed
+                        console.log(response);
+                        $('#remarksModal' + currentCompanyId).modal('hide');  // 使用 currentCompanyId
+                        // Hide loading spinner or modal when the request is complete
+
+                        location.reload();
+                        setTimeout(function () {
+                            $('#loadingModal').modal('hide');
+                        }, 3000);
+                        {#$('#loadingModal').modal('hide');#}
+                        // Display success message
+                        // alert('处理成功');
+                    },
+                    error: function (error) {
+                        // Handle the error response if needed
+                        console.error(error);
+
+                        // Hide loading spinner or modal on error
+                        $('#loadingModal').modal('hide');
+                        $('#remarksModal' + currentCompanyId).modal('hide');  // 使用 currentCompanyId
+
+                        // Display an error message
+                        alert('处理失败');
+                    }
+                });
+                // Prevent the default form submission
+                e.preventDefault();
+            });
+        });
+
+
+        function validateForm() {
+            var category = document.getElementById('category').value;
+            var startValue = document.getElementsByName('start_value')[0].value;
+            var endValue = document.getElementsByName('end_value')[0].value;
+
+            if (!category && (startValue || endValue)) {
+                alert('请选择类目');
+                return false; // Prevent form submission
+            }
+
+            return true; // Allow form submission
+        }
+
+        function toggleCheckbox(checkboxId) {
+            var checkbox = document.getElementById(checkboxId);
+            checkbox.click();
+        }
+
+        // 获取所有的复选框
+        var checkboxes = document.querySelectorAll('.form-check-input');
+
+        // 遍历复选框
+        checkboxes.forEach(function (checkbox) {
+            // 添加事件监听器
+            checkbox.addEventListener('change', function () {
+                var inputId = 'input_' + this.id; // 为输入框创建唯一标识符
+
+                // 确定所属的下拉菜单
+                var dropdownMenu = this.closest('.dropdown-menu');
+
+                // 根据所属的下拉菜单选择对应的容器
+                var generatedInputContainer;
+                if (dropdownMenu.classList.contains('dropdown-menu-left')) {
+                    generatedInputContainer = document.getElementById('generatedInputLeft_' + currentCompanyId); // 添加公司ID后缀
+                } else {
+                    generatedInputContainer = document.getElementById('generatedInputRight_' + currentCompanyId); // 添加公司ID后缀
+                }
+
+                // 如果复选框被选中
+                if (this.checked) {
+                    // 获取相邻的 label 元素的文本作为标题
+                    var labelName = this.nextElementSibling.textContent.trim();
+
+                    // 创建一个包含标题和输入框的 div 元素
+                    var containerDiv = document.createElement('div');
+                    containerDiv.setAttribute('class', 'input-group input-group-lg mt-2');
+
+                    // 创建 label 元素作为标题
+                    var label = document.createElement('label');
+                    label.setAttribute('class', 'input-group-text');
+                    label.textContent = labelName; // 使用获取的标题文本
+
+                    // 创建输入框元素
+                    var input = document.createElement('input');
+                    input.setAttribute('type', 'text');
+                    input.setAttribute('class', 'form-control');
+                    input.setAttribute('name', inputId);
+                    input.setAttribute('id', inputId); // 设置输入框的 id
+                    input.setAttribute('placeholder', 'Enter value');
+
+                    // 将 label 和输入框添加到容器中
+                    containerDiv.appendChild(label);
+                    containerDiv.appendChild(input);
+
+                    // 将容器添加到存放容器中
+                    generatedInputContainer.appendChild(containerDiv);
+                } else {
+                    // 如果复选框未选中，则移除对应的输入框及其标题
+                    var generatedInput = generatedInputContainer.querySelector('#' + inputId);
+                    if (generatedInput) {
+                        // 移除输入框
+                        generatedInput.parentElement.remove();
+                    }
+                }
+            });
+        });
+
+        $('#remarksModal' + currentCompanyId).on('hidden.bs.modal', function (e) {
+            // 选择并清空左容器
+            $('#leftContainer_' + currentCompanyId).empty();
+
+            // 选择并清空右容器
+            $('#rightContainer_' + currentCompanyId).empty();
+        });
+
+    </script>
+
+    <style>
+        .input-group-text {
+            width: 120px; /* Set your desired width */
+            height: 50px;
+        }
+
+        .input-group-lg {
+            width: 500px; /* Set your desired width for the input */
+            height: 50px;
+            /* Add any additional styling if needed */
+        }
+
+        .largeText {
+            font-size: 15px;
+            display: flex;
+            align-items: center; /* 垂直居中对齐 */
+            justify-content: center; /* 水平居中对齐 */
+            height: 100%; /* 让高度占满父容器 */
+            margin: 0; /* 移除可能存在的外边距 */
+        }
+
+
+        .col-md-6 {
+            border: 1px solid #ced4da; /* 设置边框样式 */
+            border-radius: 0.25rem; /* 设置边框圆角 */
+            padding: 0.5rem 0; /* 设置内边距 */
+        }
+
+
+    </style>
+
+    {#    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">#}
+    {#    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>#}
+    {#    <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.js"></script>#}
+{% endblock %}

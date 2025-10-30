@@ -1,0 +1,3134 @@
+import code
+import datetime
+import os
+import time
+
+from flask import render_template, request, session, redirect, url_for, flash, Blueprint, abort, jsonify, current_app
+
+from app import common
+from app.auth import login_required
+from app.common import OPERATION_LOG_VIP_REFUND_EDIT
+# from app.auto_deploy import deploy
+from app.db import get_db_connection
+from app.model_account import get_accounts, add_user, delete_user, has_permission, get_user, update_user_role, update_user_password, has_permission_show
+from app.model_account_deletion import get_account_deletion, get_account_deletion_search, get_account_deletion_id, update_account_deletion_status, add_new_account_deletion, del_account_record, \
+    edit_account_data
+from app.model_api import get_api_list, get_channel, update_api_data, get_api, updata_pushadd
+from app.model_code_modify import get_code_modify_search, update_code
+from app.model_company import get_companies, get_companies_search, get_unpay_companies, get_unpay_companies_search, get_unpay_companies_remark, update_unpay_companies_remark, get_followup_companies, \
+    get_followup_operdata, update_progress_exec_impl, update_progress_description_impl, get_followup_companies_search, update_scale_impl, update_customer_impl, get_bonus, get_contract, \
+    Batchget_contract
+from app.model_compre_export import get_compre_export, perio_export
+from app.model_coop_ex import get_coop_ex, add_new_coop_ex, get_coop_id, update_coop_ex, get_coop_updata, add_company_coop, update_authority_db
+# from app.model_coop_ex import get_coop_ex
+from app.model_discount import get_discounts, add_new_discount, get_discount, update_discount_status, get_discounts_search, edit_discount_data, del_discount_record, move_discount_record, \
+    tracking_discount_record, update_select_discount_state
+from app.model_flow import get_flow_todo
+from app.model_guide_video import get_vguide_video, add_new_guide_video, get_guide_video, updata_guide_video
+from app.model_initial_order import get_account_id, get_initial_order_log
+from app.model_log import log_operation
+from app.model_operating_sub_company import get_operating_sub, add_operating_sub, edit_operating_sub, get_operating_sub_id, del_operating_sub
+from app.model_pay_sub_merchant import get_sub_merchant_list
+from app.model_presales_progress import get_presales_progress, get_presales_progress_id, update_presales_progress, uupdate_presales_scale_impl, presales_progress_add, update_claim_presales, \
+    update_contact, batch_update_claim_presales, update_save_tags, get_presales_by_taskid, get_stat_presales
+from app.model_receipt import get_receipts, get_receipt, update_receipt_status, add_new_receipt, get_receipts_by_status, company_receipts_filter, del_receipt_record, head_receipts_filter, \
+    partner_receipts_filter
+from app.model_role import get_roles, add_user_role, get_permissions_tree, update_role, get_role_by_id, get_selected_permissions, del_role_record, insert_role
+from app.model_shop_owner_change import get_shop_owner_change, get_shop_owner_change_search, add_new_shop_owner_change, edit_shop_owner_change_data, get_shop_owner_change_id, \
+    do_shop_owner_change_data, del_shop_owner_change_record, update_remark
+from app.model_special_apply import get_special_apply, add_new_transfer, get_special, update_special_status, get_special_apply_search, del_special_record, edit_transfer_data, move_special_record
+from app.model_stat import get_stat_company, get_stat_pay, get_stat_pay_first, get_stat_period, get_stat_period_search, get_stat_operate
+from app.model_vip_refund import get_vip_refund, get_vip_refund_search, add_new_vip_refund, get_vip_refund_id, update_vip_refund_status, del_vip_record, edit_vip_data
+from app.utils import paginate, updata_operating_sub
+from app.config import PAGE_RECORD_NUM, initial_order_gnoreHistory_url, UPLOAD_FOLDER
+from flask import request, jsonify, redirect, url_for
+import json
+from flask import Flask, request, redirect, url_for, flash, render_template
+from werkzeug.utils import secure_filename
+import re
+from app.config import initial_order_url
+import base64
+from werkzeug.utils import secure_filename
+from flask import request, jsonify, send_from_directory
+
+# 微信相关
+# from app.wx_verify import generate_nonce_str, load_private_key, generate_signature, sendurl
+
+# app = Flask(__name__)
+main = Blueprint('main', __name__)
+
+
+# # 首页
+# @main.route('/')
+# @login_required
+# def index():
+#     task_count = 3
+#     current_user_id = session.get('user_id')
+#     has_permission(current_user_id, 'account')
+#     return render_template('index.html', task_count=task_count)
+
+
+# 首页
+@main.route('/')
+@login_required
+def index():
+    task_count = 3
+    current_user_id = session.get('user_id')
+    permissions_list = []
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    sql = """
+        SELECT permission_name
+        FROM t_user_roles  ur
+        JOIN t_role_permissions rp ON ur.role_id = rp.role_id
+        JOIN t_permissions p ON rp.permission_id = p.permission_id
+        WHERE ur.user_id = %s
+    """
+    cursor.execute(sql, (current_user_id,))
+    permissions = cursor.fetchall()
+
+    for permission in permissions:
+        try:
+            permissions_list.append(permission['permission_name'])  # 假设是字典
+            print(permissions_list)
+        except KeyError:  # 如果既不是元组也不是预期的字典结构
+            print(f"Unexpected item format in permissions: {permission}")
+
+    # 确保返回模板时使用permissions_list而不是原本未定义的变量
+    return render_template('index.html', task_count=task_count, permissions=permissions_list)
+
+
+# 登录页
+@main.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM t_account WHERE username = %s', (username,))
+        account = cursor.fetchone()
+        cursor.close()
+        conn.close()
+
+        if account and account['password'] == password:
+            session['logged_in'] = True
+            session['username'] = username
+            session['user_id'] = account['id']
+            session.permanent = True  # 将会话标记为永久
+            return redirect(url_for('main.index'))
+        else:
+            flash('用户名或密码错误！')
+
+    return render_template('login.html')
+
+
+# 账号列表页
+@main.route('/accounts')
+@login_required
+def accounts():
+    # 检查权限
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if not has_permission(current_user_id, 'account'):
+        abort(403)  # 没有权限，拒绝访问
+
+    # 构建面包屑路径
+    breadcrumbs = [("账号列表", url_for('main.accounts')), ]
+    accounts = get_accounts()
+    # 内存分页
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    paginated_data, total_records, total_pages = paginate(accounts, page, per_page)
+
+    return render_template('account_list.html', active_menu='accounts', results=paginated_data, permissions=permissions_list, breadcrumbs=breadcrumbs, page=page, total_pages=total_pages,
+                           per_page=per_page)
+
+
+# 删除账号
+@main.route('/account_delete/<int:id>', methods=['GET'])
+@login_required
+def account_delete(id):
+    delete_user(id)
+    log_operation(session['user_id'], common.OPERATION_LOG_ACCOUNT_DELETE, id)
+    return redirect(url_for('main.accounts'))
+
+
+# 添加账号
+@main.route('/account_add', methods=['GET', 'POST'])
+@login_required
+def account_add():
+    # 构建面包屑路径
+    breadcrumbs = [("账号列表", url_for('main.accounts')), ("添加账号", url_for('main.account_add')), ]
+
+    roles = get_roles()
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        realname = request.form['realname']
+        phone = request.form['phone']
+        email = request.form['email']
+        role_id = request.form['role_id']
+
+        new_id = add_user(username, password, realname, phone, email)
+        add_user_role(new_id, role_id)
+
+        log_operation(session['user_id'], common.OPERATION_LOG_ACCOUNT_ADD, new_id)
+        return redirect(url_for('main.accounts'))
+
+    return render_template('account_add.html', active_menu='accounts', breadcrumbs=breadcrumbs, roles=roles)
+
+
+# 修改密码
+@main.route('/account_modify_password', methods=['GET', 'POST'])
+@login_required
+def account_modify_password():
+    # 构建面包屑路径
+    breadcrumbs = [("修改密码", url_for('main.index')), ]
+
+    user_id = session['user_id']
+    user = get_user(user_id)
+    if request.method == 'POST':
+        password = request.form['password']
+        new_password = request.form['new_password']
+
+        if user['password'] != password:
+            flash('旧密码不正确')
+            return redirect(url_for('main.account_modify_password'))
+
+        update_user_password(user_id, new_password)
+
+        log_operation(session['user_id'], common.OPERATION_LOG_ACCOUNT_MODIFY_PASSWORD, user_id)
+        return redirect(url_for('main.index'))
+
+    return render_template('account_modify_password.html', breadcrumbs=breadcrumbs)
+
+
+# 修改添加角色
+@main.route('/account_setrole/<int:user_id>', methods=['GET', 'POST'])
+@login_required
+def account_setrole(user_id):
+    # 构建面包屑路径
+    breadcrumbs = [("账号列表", url_for('main.accounts')), ("修改角色", url_for('main.accounts')), ]
+
+    roles = get_roles()
+    user = get_user(user_id)
+    if request.method == 'POST':
+        role_id = request.form['role_id']
+        update_user_role(user_id, role_id)
+
+        log_operation(session['user_id'], common.OPERATION_LOG_ACCOUNT_SETROLE, user_id)
+        return redirect(url_for('main.accounts'))
+
+    return render_template('account_set_role.html', active_menu='accounts', breadcrumbs=breadcrumbs, roles=roles, user=user)
+
+
+# 发票列表
+@main.route('/receipts')
+@login_required
+def receipts():  # put application's code here
+    # 构建面包屑路径
+    breadcrumbs = [("发票列表", url_for('main.receipts')), ]
+
+    current_user_id = session.get('user_id')
+
+    permissions_list = has_permission_show(current_user_id)
+    status_filter = request.args.get('status')
+    company_info = request.args.get('company_info')
+
+    if status_filter in ('', None) and company_info in ('', None):
+        receipts = get_receipts()
+    else:
+        receipts = get_receipts_by_status(status_filter,company_info)
+
+    # 内存分页
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', PAGE_RECORD_NUM, type=int)
+    paginated_data, total_records, total_pages = paginate(receipts, page, per_page)
+
+    return render_template('receipt_list.html', active_menu='receipts', receipts=paginated_data, permissions=permissions_list, breadcrumbs=breadcrumbs, current_user_id=current_user_id,
+                           status_filter=status_filter, page=page, total_pages=total_pages, per_page=per_page)
+
+
+# 申请发票
+@main.route('/add_receipt', methods=['GET', 'POST'])
+@login_required
+def add_receipt():
+    # 构建面包屑路径
+    breadcrumbs = [("发票列表", url_for('main.receipts')), ("申请发票", url_for('main.add_receipt')), ]
+
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if request.method == 'POST':
+        company_id = request.form['company_id'].strip()
+        phone = request.form['phone']
+        remark = request.form['remark']
+        price = request.form['price']
+        invoice_head = request.form['invoice_head']
+        tax_id = request.form['tax_id']
+        addr = request.form['addr']
+        khh = request.form['khh']
+        bank_account = request.form['bank_account']
+
+        # h获取工作流todo
+        todo_userid = get_flow_todo('receipt', 1)
+        receipt_id = add_new_receipt(company_id, phone, price, invoice_head, tax_id, khh, bank_account, addr, remark, current_user_id, todo_userid)
+
+        log_operation(session['user_id'], common.OPERATION_LOG_RECEIPT_ADD, receipt_id)
+        return redirect(url_for('main.receipts'))
+
+    return render_template('receipt_add.html', active_menu='receipts', breadcrumbs=breadcrumbs, permissions=permissions_list)
+
+
+
+@main.route('/edit_receipt/<int:receipt_id>', methods=['GET', 'POST'])
+@login_required
+def edit_receipt(receipt_id):
+    # 构建面包屑路径
+    current_user_id = session.get('user_id')
+    receipt = get_receipt(receipt_id)
+    permissions_list = has_permission_show(current_user_id)
+    status = request.args.get('status') or request.form.get('status')
+    # 构建面包屑路径
+    breadcrumbs = [("发票列表", url_for('main.receipts')), ("编辑发票", url_for('main.receipts')), ]
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+        company_id = request.form.get('company_id').strip()
+        phone = request.form.get('phone')
+        price = request.form.get('price')
+        remark = request.form.get('remark')
+        todo_remark = request.form.get('todo_remark')
+        invoice_head = request.form['invoice_head']
+        tax_id = request.form['tax_id']
+        addr = request.form['addr']
+        khh = request.form['khh']
+        bank_account = request.form['bank_account']
+
+        # current_user_id = session.get('user_id')
+        current_time = datetime.datetime.now()
+
+        update_receipt_status(receipt_id, company_id, phone, price, invoice_head, tax_id, khh, bank_account, addr, remark, 1)
+        log_operation(session['user_id'], common.OPERATION_LOG_RECEIPT_EDIT, receipt_id)
+
+        return redirect(url_for('main.receipts'))
+
+    return render_template('receipt_edit.html', active_menu='receipts', breadcrumbs=breadcrumbs,receipt=receipt, permissions=permissions_list)
+
+
+@main.route('/old_search_company', methods=['GET'])
+def old_search_company():
+    company_id = request.args.get('company_id')
+    head = request.args.get('invoice_head')
+    partner = request.args.get('partner_id')
+
+    # 查询数据库中的公司 ID
+    if company_id not in (None, ''):
+        company = company_receipts_filter(company_id.strip())
+
+        if company:
+            # 将查询结果转换为字典
+            company_dict = {'company_id': company['company_id'], 'invoice_head': company['invoice_head'], 'tax_id': company['tax_id'], 'khh': company['khh'], 'bank_account': company['bank_account'],
+                            'addr': company['addr'],'phone': company['phone']}
+            return jsonify({'found': True, 'data': company_dict})
+        else:
+            # 如果没有找到公司信息
+            return jsonify({'found': False})
+
+    if head not in (None, ''):
+        parentheses_replacements = [(r'$[^$]*\)', lambda m: f'（{m.group()[1:-1]}）'),  # 英文括号 -> 中文括号
+            (r'（[^）]*）', lambda m: f'({m.group()[1:-1]})')  # 中文括号 -> 英文括号
+        ]
+
+        # 遍历所有括号类型，尝试替换并查询
+        for pattern, replacement in parentheses_replacements:
+            modified_head = re.sub(pattern, replacement, head)
+            heads = head_receipts_filter(head.strip())
+
+            if heads:
+                # 将查询结果转换为字典
+                heads_dict = {'invoice_head': heads['invoice_head'], 'tax_id': heads['tax_id'], 'khh': heads['khh'], 'bank_account': heads['bank_account'], 'addr': heads['addr'], 'phone': heads['phone']}
+                return jsonify({'found': True, 'data': heads_dict})
+            else:
+                # 如果没有找到公司信息
+                return jsonify({'found': False})
+
+    if partner not in (None, ''):
+        if partner=="230592":
+            partner_result = company_receipts_filter(partner.strip())
+        else:
+            partner_result = partner_receipts_filter(partner.strip())
+
+        if partner_result:
+            # 将查询结果转换为字典
+            partner_dict = {'company_id': partner_result['company_id'], 'invoice_head': partner_result['invoice_head'], 'tax_id': partner_result['tax_id'], 'khh': partner_result['khh'], 'bank_account': partner_result['bank_account'],
+                            'addr': partner_result['addr'], 'phone': partner_result['phone']}
+            return jsonify({'found': True, 'data': partner_dict})
+        else:
+            # 如果没有找到公司信息
+            return jsonify({'found': False})
+
+
+
+        # heads = head_receipts_filter(head.strip())
+
+
+
+    # 如果找到了公司信息
+
+    # 返回 JSON 格式的查询结果
+
+
+@main.route('/coop_ex_updata', methods=['GET'])
+def coop_ex_updata():
+    # company_id = request.args.get('company_id')
+
+    # 查询数据库中的公司 ID
+    datas = get_coop_updata()
+    data_dicts = []
+
+    # for data in datas:
+    #     # 将当前公司的信息转换为字典
+    #     data_dict = {
+    #         'id': data['id'],
+    #         'companys': data['companys'],
+    #         'unpay': data['unpay'],
+    #     }
+    #     # 将转换后的字典添加到列表中
+    #     data_dicts.append(data_dict)
+    #
+    #     # 返回 JSON 格式的查询结果
+    #     return jsonify({'found': True, 'data': data_dicts})
+    # else:
+    #     # 如果没有找到公司信息
+    return datas  # return jsonify({'found': False})
+
+
+@main.route('/del_receipt', methods=['POST'])
+@login_required
+def del_receipt():
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+
+    receipt_id = request.form.get('receipt_id')  # 从 POST 请求中获取 receipt_id
+
+    if receipt_id:
+        del_receipt_record(receipt_id)
+        log_operation(session['user_id'], common.OPERATION_LOG_RECEIPT_ADD, receipt_id)
+
+    return redirect(url_for('main.receipts'))
+
+
+# 处理发票
+@main.route('/do_receipt/<int:receipt_id>', methods=['GET', 'POST'])
+@login_required
+def do_receipt(receipt_id):
+    # 从数据库中获取发票信息
+    current_user_id = session.get('user_id')
+    receipt = get_receipt(receipt_id)
+    permissions_list = has_permission_show(current_user_id)
+    status = request.args.get('status') or request.form.get('status')
+    # 构建面包屑路径
+    breadcrumbs = [("发票列表", url_for('main.receipts')), ("处理发票", url_for('main.receipts')), ]
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+        company_id = request.form.get('company_id').strip()
+        phone = request.form.get('phone')
+        price = request.form.get('price')
+        remark = request.form.get('remark')
+        todo_remark = request.form.get('todo_remark')
+        invoice_head = request.form['invoice_head']
+        tax_id = request.form['tax_id']
+        addr = request.form['addr']
+        khh = request.form['khh']
+        bank_account = request.form['bank_account']
+
+        # current_user_id = session.get('user_id')
+        current_time = datetime.datetime.now()
+
+        if action == 'complete':
+            # 更新数据库中的状态为完成（2）
+            update_receipt_status(receipt_id, company_id, phone, price, invoice_head, tax_id, khh, bank_account, addr, remark, 2, todo_remark, current_user_id, current_time)
+            log_operation(session['user_id'], common.OPERATION_LOG__RECEIPT_DO, receipt_id)
+        elif action == 'reject':
+            # 更新数据库中的状态为拒绝（3）
+            update_receipt_status(receipt_id, company_id, phone, price, invoice_head, tax_id, khh, bank_account, addr, remark, 3, todo_remark, current_user_id, current_time)
+            log_operation(session['user_id'], common.OPERATION_LOG__RECEIPT_REJECT, receipt_id)
+
+        # return redirect(url_for('main.receipts'))
+        return redirect(url_for('main.receipts', status=status))
+
+    return render_template('receipt_do.html', active_menu='receipts', breadcrumbs=breadcrumbs, receipt=receipt, permissions=permissions_list)
+
+
+# 特殊优惠申请列表
+@main.route('/discounts')
+@login_required
+def discounts():  # put application's code here
+    # 构建面包屑路径
+    breadcrumbs = [("优惠列表", url_for('main.discounts')), ]
+
+    current_user_id = session.get('user_id')
+    status_filter = request.args.get('status')
+    permissions_list = has_permission_show(current_user_id)
+    company_id = request.args.get('company_id')
+    contact = request.args.get('contact')
+    if status_filter in ('', None) and company_id in ('', None) and contact in ('', None):
+        discounts,status1_count,status2_count,status4_count,status5_count,status7_count = get_discounts()
+    else:
+        discounts,status1_count,status2_count,status4_count,status5_count,status7_count = get_discounts_search(status_filter, company_id,contact)
+
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', PAGE_RECORD_NUM, type=int)
+    paginated_data, total_records, total_pages = paginate(discounts, page, per_page)
+
+    return render_template('discount_list.html', active_menu='discounts', results=paginated_data,status1_count=status1_count,status2_count=status2_count, status4_count=status4_count,status5_count=status5_count,status7_count=status7_count,permissions=permissions_list, breadcrumbs=breadcrumbs, current_user_id=current_user_id,
+                           status_filter=status_filter, page=page, total_pages=total_pages, per_page=per_page)
+
+
+@main.route('/add_discount', methods=['GET', 'POST'])
+@login_required
+def add_discount():
+    # 构建面包屑路径
+    breadcrumbs = [("优惠列表", url_for('main.discounts')), ("申请优惠", url_for('main.add_discount')), ]
+
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if request.method == 'POST':
+        company_id = request.form['company_id'].strip()
+        phone = request.form['phone']
+        details = request.form['remark']
+
+        # h获取工作流todo
+        todo_userid = get_flow_todo('discount', 1)
+        discount_id = add_new_discount(company_id, details,phone,current_user_id, todo_userid)
+
+        log_operation(session['user_id'], common.OPERATION_LOG_DISCOUNT_ADD, discount_id)
+        return redirect(url_for('main.discounts'))
+
+    return render_template('discount_add.html', active_menu='discounts', breadcrumbs=breadcrumbs, permissions=permissions_list, )
+
+
+# 处理特殊优惠
+@main.route('/do_discount/<int:id>', methods=['GET', 'POST'])
+@login_required
+def do_discount(id):
+    discount = get_discount(id)
+    final_plan = ""
+    status = request.args.get('status') or request.form.get('status')
+
+    # 构建面包屑路径
+    breadcrumbs = [("优惠列表", url_for('main.discounts')), ("处理优惠", url_for('main.discounts')), ]
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if request.method == 'POST':
+        action = request.form.get('action')
+        todo_remark = request.form.get('details')
+        final_plan = request.form.get('final_plan')
+        company_id = request.form.get('company_id').strip()
+        phone = request.form.get('phone')
+        if action == 'communicated':
+            update_discount_status(id, 2, todo_remark, current_user_id, final_plan, todo_remark, company_id,phone)
+            log_operation(session['user_id'], common.OPERATION_LOG_DISCOUNT_communicated, id)
+        elif action == 'completed':
+            # 更新数据库中的状态为已完成（3）
+            update_discount_status(id, 3, todo_remark, current_user_id, final_plan, todo_remark, company_id,phone)
+            log_operation(session['user_id'], common.OPERATION_LOG_DISCOUNT_DO, id)
+        elif action == 'process':
+            # 更新数据库中的状态为审核（4）
+            update_discount_status(id, 4, todo_remark, 3, final_plan, todo_remark, company_id,phone)
+            log_operation(session['user_id'], common.OPERATION_LOG_DISCOUNT_PROCESS, id)
+        elif action == 'communication_2nd':
+            # 更新数据库中的状态为二次沟通（5）
+            update_discount_status(id, 5, todo_remark, 7, final_plan, todo_remark, company_id,phone)
+            log_operation(session['user_id'], common.OPERATION_LOG_DISCOUNT_PROCESS, id)
+        elif action == 'reject':
+            # 更新数据库中的状态为拒绝（3）
+            update_discount_status(id, 6, todo_remark, current_user_id, final_plan, todo_remark, company_id,phone)
+            log_operation(session['user_id'], common.OPERATION_LOG_DISCOUNT_REJECT, id)
+        elif action == 'save':
+            # 更新数据库中的状态为草稿
+            update_discount_status(id, 8, todo_remark, current_user_id, final_plan, todo_remark, company_id,phone)
+            log_operation(session['user_id'], common.OPERATION_LOG_DISCOUNT_REJECT, id)
+        elif action == 'do_save':
+            # 更新数据库中的状态为草稿
+            update_discount_status(id, 10, todo_remark, current_user_id, final_plan, todo_remark, company_id,phone)
+            log_operation(session['user_id'], common.OPERATION_LOG_DISCOUNT_REJECT, id)
+        elif action == 'abandons':
+            # 更新数据库中的状态为拒绝（3）
+            update_discount_status(id, 9, todo_remark, current_user_id, final_plan, todo_remark, company_id,phone)
+            log_operation(session['user_id'], common.OPERATION_LOG_DISCOUNT_ABANDONS, id)
+
+        return redirect(url_for('main.discounts', status=status))
+
+    return render_template('discount_do.html', active_menu='discounts', breadcrumbs=breadcrumbs, discount=discount, permissions=permissions_list)
+
+
+#优惠编辑
+@main.route('/edit_discount/<int:id>', methods=['GET', 'POST'])
+@login_required
+def edit_discount(id):
+    discount = get_discount(id)
+    final_plan = ""
+    status = request.args.get('status') or request.form.get('status')
+
+    # 构建面包屑路径
+    breadcrumbs = [("优惠列表", url_for('main.discounts')), ("处理优惠", url_for('main.discounts')), ]
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if request.method == 'POST':
+
+        remark = request.form.get('remark')
+        company_id = request.form.get('company_id').strip()
+        phone = request.form['phone']
+        edit_discount_data(id, remark, company_id,phone)
+        log_operation(session['user_id'], common.OPERATION_LOG_DISCOUNT_edit, id)
+
+        return redirect(url_for('main.discounts', status=status))
+
+    return render_template('discount_edit.html', active_menu='discounts', breadcrumbs=breadcrumbs, discount=discount, permissions=permissions_list)
+
+#删除优惠
+@main.route('/del_discount', methods=['POST'])
+@login_required
+def del_discount():
+    discount_id = request.form.get('discount_id')  # 从 POST 请求中获取 receipt_id
+    if discount_id:
+        del_discount_record(discount_id)
+        log_operation(session['user_id'], common.OPERATION_LOG_DISCOUNT_DELETE, discount_id)
+
+    return redirect(url_for('main.discounts'))
+
+
+#选择更新状态
+@main.route('/select_discount_state', methods=['POST'])
+@login_required
+def select_discount_state():
+    id = request.form.get('id')
+    status = request.form.get('status')
+    if id:
+        result=update_select_discount_state(id,status)
+
+    return jsonify({'success': True})
+    # return redirect(url_for('main.discounts'))
+
+
+
+#移动优惠到调整
+@main.route('/move_discount/<int:id>', methods=['GET', 'POST'])
+@login_required
+def move_discount(id):
+    move_discount_record(id)
+    log_operation(session['user_id'], common.OPERATION_LOG_DISCOUNT_MOVE, id)
+
+    return redirect(url_for('main.discounts'))
+
+
+#优惠—继续跟踪
+@main.route('/tracking_discount/<int:id>', methods=['GET', 'POST'])
+@login_required
+def tracking_discount(id):
+    tracking_discount_record(id)
+    # log_operation(session['user_id'], common.OPERATION_LOG_DISCOUNT_MOVE, id)
+
+    return redirect(url_for('main.discounts'))
+
+
+
+# 特殊申请-数据转移（房号、使用期限等）
+@main.route('/special_apply')
+@login_required
+def special_apply():  # put application's code here
+    # 构建面包屑路径
+    breadcrumbs = [("数据调整列表", url_for('main.special_apply')), ]
+
+    current_user_id = session.get('user_id')
+    status_filter = request.args.get('status')
+    permissions_list = has_permission_show(current_user_id)
+    company_id = request.args.get('company_id')
+    if status_filter in ('', None) and company_id in ('', None):
+        specials,total_count,status1_count,status2_count,status3_count= get_special_apply()
+    else:
+        specials,total_count,status1_count,status2_count,status3_count = get_special_apply_search(status_filter, company_id)
+
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', PAGE_RECORD_NUM, type=int)
+    paginated_data, total_records, total_pages = paginate(specials, page, per_page)
+
+    return render_template('special_apply.html', active_menu='special_apply', results=paginated_data, total_count=total_count,status1_count=status1_count,status2_count=status2_count,status3_count=status3_count,
+                           permissions=permissions_list, breadcrumbs=breadcrumbs, current_user_id=current_user_id,
+                           status_filter=status_filter, page=page, total_pages=total_pages, per_page=per_page)
+
+
+# 申请数据转移
+@main.route('/add_transfer', methods=['GET', 'POST'])
+@login_required
+def add_transfer():
+    # 构建面包屑路径
+    breadcrumbs = [("数据调整列表", url_for('main.special_apply')), ("申请数据转移", url_for('main.add_transfer')), ]
+
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if request.method == 'POST':
+        company_id = request.form['company_id'].strip()
+        phone = request.form['phone']
+        content = request.form['content']
+        type = "f"
+
+        # h获取工作流todo
+        todo_userid = get_flow_todo('special_apply', 1)
+        special_apply_id = add_new_transfer(company_id, phone, content, current_user_id, todo_userid, type)
+
+        log_operation(session['user_id'], common.OPERATION_LOG_SPECIAL_APPLY_ADD, special_apply_id)
+        return redirect(url_for('main.special_apply'))
+
+    return render_template('special_apply_add.html', active_menu='special_apply', breadcrumbs=breadcrumbs, permissions=permissions_list)
+
+
+# 处理特殊优惠
+@main.route('/do_transfer/<int:id>', methods=['GET', 'POST'])
+@login_required
+def do_transfer(id):
+    special = get_special(id)
+    final_plan = ""
+    company_id = ""
+
+    # 构建面包屑路径
+    breadcrumbs = [("数据调整列表", url_for('main.special_apply')), ("处理数据调整", url_for('main.special_apply')), ]
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if request.method == 'POST':
+        action = request.form.get('action')
+        todo_remark = request.form.get('todo_remark')
+        final_plan = request.form.get('final_plan')
+        if request.form.get('company_id') is not None:
+            company_id = request.form.get('company_id').strip()
+        phone = request.form.get('phone')
+
+        if action == 'completed':
+            # 更新数据库中的状态为已完成（3）
+            update_special_status(id, 2, current_user_id, final_plan, todo_remark, company_id, phone)
+            log_operation(session['user_id'], common.OPERATION_LOG_SPECIAL_APPLY_DO, id)
+        elif action == 'save':
+            # 更新数据库中的状态为拒绝（3）
+            update_special_status(id, 8, current_user_id, final_plan, todo_remark, company_id, phone)
+            log_operation(session['user_id'], common.OPERATION_LOG_DISCOUNT_REJECT, id)
+        elif action == 'reject':
+            # 更新数据库中的状态为已完成（3）
+            update_special_status(id, 3, current_user_id, final_plan, todo_remark, company_id, phone)
+            log_operation(session['user_id'], common.OPERATION_LOG_SPECIAL_APPLY_REJECT, id)
+        elif action == 'save_remark':
+            # 更新数据库中的状态为已完成（3）
+            update_special_status(id, 4, current_user_id, final_plan, todo_remark, company_id, phone)
+            log_operation(session['user_id'], common.OPERATION_LOG_DISCOUNT_DO, id)
+
+        return redirect(url_for('main.special_apply'))
+
+    return render_template('special_do.html', active_menu='special', breadcrumbs=breadcrumbs, special=special, permissions=permissions_list)
+
+
+
+#转移编辑
+@main.route('/edit_special/<int:id>', methods=['GET', 'POST'])
+@login_required
+def edit_special(id):
+    special = get_special(id)
+    company_id = ""
+
+    # 构建面包屑路径
+    breadcrumbs = [("数据调整列表", url_for('main.special_apply')), ("处理数据调整", url_for('main.special_apply')), ]
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if request.method == 'POST':
+        if request.form.get('company_id') is not None:
+            company_id = request.form.get('company_id').strip()
+            phone = request.form.get('phone')
+            content = request.form.get('content')
+            # 更新数据库中的状态为已完成（3）
+            edit_transfer_data(id, phone, content, company_id)
+            log_operation(session['user_id'], common.OPERATION_LOG_SPECIAL_EDIT, id)
+
+
+        return redirect(url_for('main.special_apply'))
+
+    return render_template('special_edit.html', active_menu='special', breadcrumbs=breadcrumbs, special=special, permissions=permissions_list)
+
+
+
+
+#删除转移
+@main.route('/del_special', methods=['POST'])
+@login_required
+def del_special():
+    special_id = request.form.get('special_id')  # 从 POST 请求中获取 receipt_id
+    if special_id:
+        del_special_record(special_id)
+        log_operation(session['user_id'], common.OPERATION_LOG_SPECIAL_DELETE, special_id)
+
+    return redirect(url_for('main.special_apply'))
+
+
+#移动调整到优惠
+@main.route('/move_specia/<int:id>', methods=['GET', 'POST'])
+@login_required
+def move_specia(id):
+    move_special_record(id)
+    log_operation(session['user_id'], common.OPERATION_LOG_SPECIAL_MOVE, id)
+
+    return redirect(url_for('main.special_apply'))
+
+
+
+# 特殊申请-账号注销
+@main.route('/account_deletion')
+@login_required
+def account_deletion():  # put application's code here
+    # 构建面包屑路径
+    breadcrumbs = [("账号注销列表", url_for('main.account_deletion')), ]
+
+    current_user_id = session.get('user_id')
+    status_filter = request.args.get('status')
+    permissions_list = has_permission_show(current_user_id)
+    company_id = request.args.get('company_id')
+    if status_filter in ('', None) and company_id in ('', None):
+        specials = get_account_deletion()
+    else:
+        specials = get_account_deletion_search(status_filter, company_id)
+
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', PAGE_RECORD_NUM, type=int)
+    paginated_data, total_records, total_pages = paginate(specials, page, per_page)
+
+    return render_template('account_deletion.html', active_menu='account_deletion', results=paginated_data, permissions=permissions_list, breadcrumbs=breadcrumbs, current_user_id=current_user_id,
+                           status_filter=status_filter, page=page, total_pages=total_pages, per_page=per_page)
+
+
+# 申请账号注销
+@main.route('/add_account_deletion', methods=['GET', 'POST'])
+@login_required
+def add_account_deletion():
+    # 构建面包屑路径
+    breadcrumbs = [("账号注销列表", url_for('main.account_deletion')), ("申请账号注销", url_for('main.add_account_deletion')), ]
+
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if request.method == 'POST':
+        company_id = request.form['company_id'].strip()
+        phone = request.form['phone']
+        content = request.form['content']
+        type = "f"
+
+        # h获取工作流todo
+        todo_userid = get_flow_todo('account_deletion', 1)
+        special_apply_id = add_new_account_deletion(company_id, phone, content, current_user_id, todo_userid, "e")
+
+        log_operation(session['user_id'], common.OPERATION_LOG_ACCOUNT_DELETION_ADD, special_apply_id)
+        return redirect(url_for('main.account_deletion'))
+
+    return render_template('account_deletion_add.html', active_menu='account_deletion', breadcrumbs=breadcrumbs, permissions=permissions_list)
+
+
+# 处理账号注销
+@main.route('/do_account_deletion/<int:id>', methods=['GET', 'POST'])
+@login_required
+def do_account_deletion(id):
+    resultid = get_account_deletion_id(id)
+    final_plan = ""
+    company_id = ""
+
+    # 构建面包屑路径
+    breadcrumbs = [("账号注销列表", url_for('main.account_deletion')), ("处理账号注销", url_for('main.account_deletion')), ]
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if request.method == 'POST':
+        action = request.form.get('action')
+        todo_remark = request.form.get('todo_remark')
+        final_plan = request.form.get('final_plan')
+        if request.form.get('company_id') is not None:
+            company_id = request.form.get('company_id').strip()
+        phone = request.form.get('phone')
+
+        if action == 'completed':
+            # 更新数据库中的状态为已完成（3）
+            update_account_deletion_status(id, 2, current_user_id, final_plan, todo_remark, company_id, phone)
+            log_operation(session['user_id'], common.OPERATION_LOG_ACCOUNT_DELETION_DO, id)
+        elif action == 'save':
+            # 更新数据库中的状态为拒绝（3）
+            update_account_deletion_status(id, 8, current_user_id, final_plan, todo_remark, company_id, phone)  # log_operation(session['user_id'], common.OPERATION_LOG_DISCOUNT_REJECT, id)
+        elif action == 'reject':
+            # 更新数据库中的状态为已完成（3）
+            update_account_deletion_status(id, 3, current_user_id, final_plan, todo_remark, company_id, phone)
+            log_operation(session['user_id'], common.OPERATION_LOG_ACCOUNT_DELETION_REJECT, id)
+        elif action == 'save_remark':
+            # 更新数据库中的状态为已完成（3）
+            update_account_deletion_status(id, 4, current_user_id, final_plan, todo_remark, company_id, phone)  # log_operation(session['user_id'], common.OPERATION_LOG_DISCOUNT_DO, id)
+
+        return redirect(url_for('main.account_deletion'))
+
+    return render_template('account_deletion_do.html', active_menu='account_deletion', breadcrumbs=breadcrumbs, resultid=resultid, permissions=permissions_list)
+
+
+#删除转移
+@main.route('/del_account_deletion', methods=['POST'])
+@login_required
+def del_account_deletion():
+    account_deletion_id = request.form.get('account_deletion_id')  # 从 POST 请求中获取 receipt_id
+    if account_deletion_id:
+        del_account_record(account_deletion_id)
+        log_operation(session['user_id'], common.OPERATION_LOG_SPECIAL_DELETE, account_deletion_id)
+
+    return redirect(url_for('main.account_deletion'))
+
+@main.route('/edit_account_deletion/<int:id>', methods=['GET', 'POST'])
+@login_required
+def edit_account_deletion(id):
+    resultid = get_account_deletion_id(id)
+    company_id = ""
+
+    # 构建面包屑路径
+    breadcrumbs = [("账号注销列表", url_for('main.account_deletion')), ("处理账号注销", url_for('main.account_deletion')), ]
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if request.method == 'POST':
+        if request.form.get('company_id') is not None:
+            company_id = request.form.get('company_id').strip()
+            phone = request.form.get('phone')
+            content = request.form.get('content')
+            # 更新数据库中的状态为已完成（3）
+            edit_account_data(id, phone, content, company_id)
+            log_operation(session['user_id'], common.OPERATION_LOG_SPECIAL_EDIT, id)
+
+
+        return redirect(url_for('main.account_deletion'))
+
+    return render_template('account_deletion_edit.html', active_menu='account_deletion', breadcrumbs=breadcrumbs, resultid=resultid, permissions=permissions_list)
+
+
+
+# 特殊申请-账号注销
+@main.route('/vip_refund')
+@login_required
+def vip_refund():  # put application's code here
+    # 构建面包屑路径
+    breadcrumbs = [("vip费用退款列表", url_for('main.vip_refund')), ]
+
+    current_user_id = session.get('user_id')
+    payment_type_filter = request.args.get('payment_type')
+    status_filter = request.args.get('status')
+    permissions_list = has_permission_show(current_user_id)
+    print(permissions_list)
+    company_id = request.args.get('company_id')
+    if status_filter in ('', None) and company_id in ('', None) and payment_type_filter in ('', None):
+        refund = get_vip_refund()
+    else:
+        refund = get_vip_refund_search(status_filter, company_id,payment_type_filter)
+
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', PAGE_RECORD_NUM, type=int)
+    paginated_data, total_records, total_pages = paginate(refund, page, per_page)
+
+    return render_template('vip_refund.html', active_menu='vip_refund', results=paginated_data, permissions=permissions_list, breadcrumbs=breadcrumbs, current_user_id=current_user_id,
+                           status_filter=status_filter,payment_type_filter=payment_type_filter, page=page, total_pages=total_pages, per_page=per_page)
+
+
+# 申请vip费用退款
+@main.route('/add_vip_refund', methods=['GET', 'POST'])
+@login_required
+def add_vip_refund():
+    # 构建面包屑路径
+    global filename
+    breadcrumbs = [("vip退费列表", url_for('main.vip_refund')), ("申请vip退费", url_for('main.add_vip_refund')), ]
+
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if request.method == 'POST':
+        company_id = request.form['company_id'].strip()
+        phone = request.form['phone']
+        content = request.form['content']
+        # files = request.files.getlist('images')
+        price = request.form['price']
+        id_back_image = request.files.get('id_back_image')
+        payment_type = request.form.get('payment_type', '')
+
+        # basedir = os.path.abspath(os.path.dirname(__file__))
+        # # 设置上传目录
+        # UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads', 'vip_refund')
+        #
+        # # 确保上传目录存在
+        # os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+        # 处理文件上传
+        if id_back_image and id_back_image.filename:
+            # 生成安全的文件名（保留原扩展名）
+            original_ext = os.path.splitext(id_back_image.filename)[1].lower()
+            filename = secure_filename(f"{company_id}_{int(time.time())}{original_ext}")
+
+            filepath = os.path.join('uploads', filename)  # 保存到项目根目录的 uploads 文件夹
+            os.makedirs('uploads', exist_ok=True)
+            id_back_image.save(filepath)
+            card_back_image = filename # 存储文件名
+        else:
+            card_back_image = ''
+
+
+        # h获取工作流todo
+        todo_userid = get_flow_todo('vip_refund', 1)
+        # vip_refund_id = add_new_vip_refund(company_id, phone, content, current_user_id, todo_userid, "r", price, payment_type,card_back_image=card_back_image)
+
+        vip_refund_id = add_new_vip_refund(company_id=company_id, phone=phone, content=content, create_account_id=current_user_id, todo_account_id=todo_userid, type="r",  # 假设这是状态参数
+            price=price, payment_type=payment_type, card_back_image=card_back_image  # 只在这里传递一次
+        )
+
+
+        log_operation(session['user_id'], common.OPERATION_LOG_VIP_REFUND_ADD, vip_refund_id)
+
+        return jsonify({'success': True, 'message': '退费申请提交成功', 'redirect': url_for('main.vip_refund')})
+        # return redirect(url_for('main.vip_refund'))
+
+    return render_template('vip_refund_add.html', active_menu='vip_refund', breadcrumbs=breadcrumbs, permissions=permissions_list)
+
+
+# 处理vip退费
+@main.route('/do_vip_refund/<int:id>', methods=['GET', 'POST'])
+@login_required
+def do_vip_refund(id):
+    resultid = get_vip_refund_id(id)
+    if not resultid:
+        abort(404)
+
+    # 构建面包屑路径
+    breadcrumbs = [("vip退费列表", url_for('main.vip_refund')), ("处理账号注销", url_for('main.vip_refund'))]
+
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+
+    if request.method == 'POST':
+        try:
+            # 获取表单数据
+            action = request.form.get('action')
+            payment_type = request.form.get('payment_type', '')
+            if not action:
+                return jsonify({'success': False, 'message': '操作类型不能为空'}), 400
+
+            # 基础字段
+            data = {'company_id': request.form.get('company_id', '').strip(), 'phone': request.form.get('phone', ''), 'price': request.form.get('price', ''),
+                'final_plan': request.form.get('final_plan', ''), 'todo_remark': request.form.get('todo_remark', ''), 'todo_account_id': current_user_id,'payment_type':request.form.get('payment_type', '')}
+
+            # 文件处理
+            id_back_image = request.files.get('id_back_image')
+            existing_image = request.form.get('existing_image', '')
+
+            if id_back_image and id_back_image.filename:
+                # 确保上传目录存在
+                project_root = os.path.dirname(current_app.root_path)
+                upload_dir = os.path.join(project_root, 'uploads')
+                os.makedirs(upload_dir, exist_ok=True)
+
+                # 生成安全文件名
+                original_ext = os.path.splitext(id_back_image.filename)[1].lower()
+                filename = secure_filename(f"{data['company_id']}_{int(time.time())}{original_ext}")
+                filepath = os.path.join(upload_dir, filename)
+
+                # 保存文件
+                id_back_image.save(filepath)
+                data['image_data'] = filename
+
+                # 删除旧图片（如果有）
+                if existing_image and os.path.exists(os.path.join(upload_dir, existing_image)):
+                    os.remove(os.path.join(upload_dir, existing_image))
+            else:
+                data['image_data'] = existing_image if existing_image else None
+
+            # 状态映射
+            status_map = {'completed': 2, 'save': 8, 'reject': 3, 'save_remark': 4}
+
+            # 更新数据库
+            update_vip_refund_status(id, status_map[action], **data)
+
+            # 记录操作日志
+            if action in ['completed', 'reject']:
+                log_type = common.OPERATION_LOG_VIP_REFUND_DO if action == 'completed' else common.OPERATION_LOG_VIP_REFUND_REJECT
+                log_operation(current_user_id, log_type, id)
+
+            return jsonify({'success': True, 'message': '操作成功', 'redirect': url_for('main.vip_refund'), 'image_url': f'/uploads/{data["image_path"]}' if data.get('image_path') else None})
+
+        except Exception as e:
+            current_app.logger.error(f"处理VIP退费失败: {str(e)}")
+            return jsonify({'success': False, 'message': f'处理失败: {str(e)}'}), 500
+
+    return render_template('vip_refund_do.html', active_menu='vip_refund', breadcrumbs=breadcrumbs, resultid=resultid, permissions=permissions_list)
+
+
+#删除vip
+@main.route('/del_vip_refund', methods=['POST'])
+@login_required
+def del_vip_refund():
+    vip_refund_id = request.form.get('vip_refund_id')  # 从 POST 请求中获取 receipt_id
+    if vip_refund_id:
+        del_vip_record(vip_refund_id)
+        log_operation(session['user_id'], common.OPERATION_LOG_VIP_REFUND_DELETE, vip_refund_id)
+
+    return redirect(url_for('main.vip_refund'))
+
+
+# 配置上传路径（根据项目结构图）
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
+
+
+@main.route('/uploads/<filename>')
+def uploaded_file(filename):
+    """提供上传文件的访问"""
+    return send_from_directory(UPLOAD_FOLDER, filename)
+
+
+@main.route('/edit_vip_refund/<int:id>', methods=['GET', 'POST'])
+@login_required
+def edit_vip_refund(id):
+    resultid = get_vip_refund_id(id)
+    filepath=""
+    # print(f"Debug: Payment Type = {resultid.payment_type}")
+
+    # 构建面包屑路径
+    breadcrumbs = [("vip退费列表", url_for('main.vip_refund')), ("处理账号注销", url_for('main.vip_refund'))]
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+
+    if request.method == 'POST':
+        try:
+            # 获取表单数据
+            company_id = request.form.get('company_id', '').strip()
+            phone = request.form.get('phone', '')
+            content = request.form.get('content', '')
+            price = request.form.get('price', '')
+            id_back_image = request.files.get('id_back_image')
+            existing_image = request.form.get('existing_image', '')
+            payment_type = request.form.get('payment_type', '')
+            # print("id_back_image="+id_back_image)
+            # 处理图片上传
+            image_path = existing_image  # 默认保留原图片
+
+            if id_back_image and id_back_image.filename:
+                # 生成安全的文件名（保留原扩展名）
+                original_ext = os.path.splitext(id_back_image.filename)[1].lower()
+                filename = secure_filename(f"{company_id}_{int(time.time())}{original_ext}")
+
+                filepath = os.path.join('uploads', filename)  # 保存到项目根目录的 uploads 文件夹
+                os.makedirs('uploads', exist_ok=True)
+                id_back_image.save(filepath)
+                card_back_image = filename  # 存储文件名
+            else:
+                card_back_image = existing_image
+
+                # 删除旧图片（如果有）
+                if existing_image:
+                    old_file = os.path.join(filepath, existing_image)
+                    if os.path.exists(old_file):
+                        os.remove(old_file)
+
+            # 更新数据库记录
+            edit_vip_data(id=id, company_id=company_id, phone=phone, content=content, price=price, payment_type=payment_type,image_path=card_back_image)
+
+            # 记录操作日志
+            log_operation(session['user_id'], common.OPERATION_LOG_VIP_REFUND_EDIT, id)
+
+            return jsonify({'success': True, 'message': '更新成功', 'redirect': url_for('main.vip_refund'), 'image_url': f'/uploads/{filename}' if id_back_image else None})
+
+        except Exception as e:
+            current_app.logger.error(f"编辑VIP退费失败: {str(e)}")
+            return jsonify({'success': False, 'message': '更新失败，请稍后再试'}), 500
+
+    return render_template('vip_refund_edit.html', active_menu='vip_refund', breadcrumbs=breadcrumbs, resultid=resultid ,permissions=permissions_list)
+
+
+# 添加文件访问路由
+@main.route('/uploads/<filename>')
+def serve_uploaded_file(filename):
+    return send_from_directory(os.path.join(current_app.root_path, 'uploads'), filename)
+
+
+
+# 更换店主
+@main.route('/shop_owner_change')
+@login_required
+def shop_owner_change():  # put application's code here
+    # 构建面包屑路径
+    breadcrumbs = [("申请店主更换列表", url_for('main.shop_owner_change')), ]
+
+    current_user_id = session.get('user_id')
+    status_filter = request.args.get('status')
+    permissions_list = has_permission_show(current_user_id)
+    print(permissions_list)
+    company_id = request.args.get('company_id')
+    if status_filter in ('', None) and company_id in ('', None):
+        results = get_shop_owner_change()
+    else:
+        results = get_shop_owner_change_search(status_filter, company_id)
+
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', PAGE_RECORD_NUM, type=int)
+    paginated_data, total_records, total_pages = paginate(results, page, per_page)
+
+    return render_template('shop_owner_change.html', active_menu='shop_owner_change', results=paginated_data, permissions=permissions_list, breadcrumbs=breadcrumbs, current_user_id=current_user_id,
+                           status_filter=status_filter, page=page, total_pages=total_pages, per_page=per_page)
+
+
+
+
+@main.route('/add_shop_owner_change', methods=['GET', 'POST'])
+@login_required
+def add_shop_owner_change():
+    if request.method == 'POST':
+        try:
+            # 处理表单数据
+            company_id = request.form.get('company_id')
+            # old_owner = request.form.get('old_owner')
+            new_owner = request.form.get('new_owner')
+            content = request.form.get('content')
+            status = 1
+
+            # 处理上传的图片文件
+            id_front_image = request.files.get('id_front_image')
+            id_back_image = request.files.get('id_back_image')
+            license_image = request.files.get('license_image')
+
+            # 将图片转换为base64
+            def process_image(file):
+                if file and file.filename:
+                    return base64.b64encode(file.read()).decode('utf-8')
+                return None
+
+            # 处理三种图片
+            card_front_image = process_image(id_front_image)  # 身份证正面
+            card_back_image = process_image(id_back_image)    # 身份证反面
+            license_image_data = process_image(license_image) # 营业执照
+
+            # 保存到数据库
+            todo_userid = get_flow_todo('vip_refund', 1)
+            id = add_new_shop_owner_change(
+                company_id=company_id,
+                # old_owner=old_owner,
+                new_owner=new_owner,
+                content=content,
+                current_user_id=session['user_id'],
+                todo_userid=todo_userid,
+                card_front_image=card_front_image,
+                card_back_image=card_back_image,
+                license_image_data=license_image_data,
+                status=status
+            )
+
+            log_operation(session['user_id'], common.OPERATION_LOG_SHOP_OWNER_CHANGE_ADD, id)
+
+            # 返回JSON响应
+            return jsonify({'success': True, 'message': '提交成功！'})
+
+        except Exception as e:
+            current_app.logger.error(f"添加店主更换申请失败: {str(e)}")
+            return jsonify({'success': False, 'error': '提交失败，请稍后再试！'}), 500
+
+    # GET请求处理
+    breadcrumbs = [
+        ("申请店主更换列表", url_for('main.shop_owner_change')),
+        ("申请店主更换", url_for('main.add_shop_owner_change'))
+    ]
+    permissions_list = has_permission_show(session['user_id'])
+
+    return render_template(
+        'shop_owner_change_add.html',
+        active_menu='shop_owner_change',
+        breadcrumbs=breadcrumbs,
+        permissions=permissions_list
+    )
+
+
+@main.route('/edit_shop_owner_change/<int:id>', methods=['GET', 'POST'])
+@login_required
+def edit_shop_owner_change(id):
+    # 根据 ID 获取记录
+    record = get_shop_owner_change_id(id)
+    if not record:
+        return jsonify({'success': False, 'error': '记录不存在！'}), 404
+
+    if request.method == 'POST':
+        try:
+            # 处理表单数据
+            company_id = request.form.get('company_id')
+            # old_owner = request.form.get('old_owner')
+            new_owner = request.form.get('new_owner')
+            content = request.form.get('content')
+
+            # 获取现有图片路径（如果未上传新图片，则保留原有图片）
+            existing_id_front = request.form.get('existing_id_front')
+            existing_id_back = request.form.get('existing_id_back')
+            existing_license = request.form.get('existing_license')
+
+            # 处理上传的图片文件
+            id_front_image = request.files.get('id_front_image')
+            id_back_image = request.files.get('id_back_image')
+            license_image = request.files.get('license_image')
+
+            # 将图片转换为base64（仅在用户上传新图片时处理）
+            def process_image(file, existing_path):
+                if file and file.filename:  # 如果有新上传的图片
+                    return base64.b64encode(file.read()).decode('utf-8')
+                return existing_path  # 否则返回现有图片路径
+
+            # 处理三种图片
+            card_front_image = process_image(id_front_image, existing_id_front)  # 身份证正面
+            card_back_image = process_image(id_back_image, existing_id_back)    # 身份证反面
+            license_image_data = process_image(license_image, existing_license) # 营业执照
+
+            # 更新数据库记录
+            edit_shop_owner_change_data(
+                id=id,
+                company_id=company_id,
+                new_owner=new_owner,
+                content=content,
+                card_front_image=card_front_image,
+                card_back_image=card_back_image,
+                license_image_data=license_image_data
+            )
+
+            log_operation(session['user_id'], common.OPERATION_LOG_SHOP_OWNER_CHANGE_EDIT, id)
+
+            # 返回JSON响应
+            return jsonify({'success': True, 'message': '更新成功！'})
+
+
+        except Exception as e:
+            current_app.logger.error(f"编辑店主更换申请失败: {str(e)}")
+            return jsonify({'success': False, 'error': '更新失败，请稍后再试！'}), 500
+
+    # GET请求处理
+    breadcrumbs = [
+        ("申请店主更换列表", url_for('main.shop_owner_change')),
+        ("编辑店主更换申请", url_for('main.edit_shop_owner_change', id=id))
+    ]
+    permissions_list = has_permission_show(session['user_id'])
+
+    return render_template(
+        'shop_owner_change_edit.html',
+        active_menu='shop_owner_change',
+        breadcrumbs=breadcrumbs,
+        permissions=permissions_list,
+        record=record  # 将记录传递给模板
+    )
+
+
+
+
+
+@main.route('/do_shop_owner_change/<int:id>', methods=['GET', 'POST'])
+@login_required
+def do_shop_owner_change(id):
+    # 根据 ID 获取记录
+    record = get_shop_owner_change_id(id)
+    if not record:
+        return jsonify({'success': False, 'error': '记录不存在！'}), 404
+
+    if request.method == 'POST':
+        try:
+            # 处理表单数据
+            company_id = request.form.get('company_id')
+            # old_owner = request.form.get('old_owner')
+            new_owner = request.form.get('new_owner')
+            final_plan = request.form.get('final_plan')
+            todo_remark = request.form.get('todo_remark')
+            action = request.form.get('action')
+            status = 2
+
+            # 获取现有图片路径（如果未上传新图片，则保留原有图片）
+            existing_id_front = request.form.get('existing_id_front')
+            existing_id_back = request.form.get('existing_id_back')
+            existing_license = request.form.get('existing_license')
+
+            # 处理上传的图片文件
+            id_front_image = request.files.get('id_front_image')
+            id_back_image = request.files.get('id_back_image')
+            license_image = request.files.get('license_image')
+
+            # 将图片转换为base64（仅在用户上传新图片时处理）
+            def process_image(file, existing_path):
+                if file and file.filename:  # 如果有新上传的图片
+                    return base64.b64encode(file.read()).decode('utf-8')
+                return existing_path  # 否则返回现有图片路径
+
+            # 处理三种图片
+            card_front_image = process_image(id_front_image, existing_id_front)  # 身份证正面
+            card_back_image = process_image(id_back_image, existing_id_back)    # 身份证反面
+            license_image_data = process_image(license_image, existing_license) # 营业执照
+
+            # 更新数据库记录
+            do_shop_owner_change_data(
+                id=id,
+                company_id=company_id,
+                # old_owner=old_owner,
+                new_owner=new_owner,
+                final_plan=final_plan,
+                todo_remark=todo_remark,
+                status=status,
+                card_front_image=card_front_image,
+                card_back_image=card_back_image,
+                license_image_data=license_image_data,
+                action=action
+            )
+
+
+
+            log_operation(session['user_id'], common.OPERATION_LOG_SHOP_OWNER_CHANGE_EDIT, id)
+
+            # 返回JSON响应
+            return redirect(url_for('main.shop_owner_change'))
+            # return jsonify({'success': True, 'message': '更新成功！'})
+
+        except Exception as e:
+            current_app.logger.error(f"编辑店主更换申请失败: {str(e)}")
+            return jsonify({'success': False, 'error': '更新失败，请稍后再试！'}), 500
+
+    # GET请求处理
+    breadcrumbs = [
+        ("申请店主更换列表", url_for('main.shop_owner_change')),
+        ("处理店主更换", url_for('main.do_shop_owner_change', id=id))
+    ]
+    permissions_list = has_permission_show(session['user_id'])
+
+    return render_template(
+        'shop_owner_change_do.html',
+        active_menu='shop_owner_change',
+        breadcrumbs=breadcrumbs,
+        permissions=permissions_list,
+        record=record  # 将记录传递给模板
+    )
+
+
+#删除店主换房记录
+@main.route('/del_shop_owner_change', methods=['POST'])
+@login_required
+def del_shop_owner_change():
+    shop_id = request.form.get('shop_id')  # 从 POST 请求中获取 receipt_id
+    if shop_id:
+        del_shop_owner_change_record(shop_id)
+        log_operation(session['user_id'], common.OPERATION_SHOP_OWNER_CHANGE_DELETE, shop_id)
+
+    return redirect(url_for('main.shop_owner_change'))
+
+
+# #保存店主更换备注
+# @main.route('/remark_shop_owner_change', methods=['POST'])
+# @login_required
+# def remark_shop_owner_change():
+#     current_user_id = session.get('user_id')
+#     permissions_list = has_permission_show(current_user_id)
+#     id = request.form.get('id')
+#     remark = request.form.get('remark')
+#
+#     update_remark(id, remark)
+#     return redirect(url_for('main.shop_owner_change'))
+
+@main.route('/remark_shop_owner_change/<int:id>', methods=['GET', 'POST'])
+@login_required
+def remark_shop_owner_change(id):
+    # 根据 ID 获取记录
+    current_user_id = session.get('user_id')
+    record = get_shop_owner_change_id(id)
+    if not record:
+        return jsonify({'success': False, 'error': '记录不存在！'}), 404
+
+    if request.method == 'POST':
+        try:
+            # 处理表单数据
+            remark = request.form.get('remark')
+
+
+            # 更新数据库记录
+            update_remark(id,remark)
+
+            return redirect(url_for('main.shop_owner_change'))
+
+            # 返回JSON响应
+            # return jsonify({'success': True, 'message': '更新成功！'})
+
+        except Exception as e:
+            current_app.logger.error(f"编辑店主更换申请失败: {str(e)}")
+            return jsonify({'success': False, 'error': '更新失败，请稍后再试！'}), 500
+
+    # GET请求处理
+    breadcrumbs = [
+        ("申请店主更换列表", url_for('main.shop_owner_change')),
+        ("编辑店主更换申请", url_for('main.edit_shop_owner_change', id=id))
+    ]
+    permissions_list = has_permission_show(session['user_id'])
+
+    return render_template(
+        'shop_owner_change_remark.html',
+        active_menu='shop_owner_change',
+        breadcrumbs=breadcrumbs,
+        permissions=permissions_list,
+        record=record,
+        current_user_id=current_user_id
+    )
+
+
+
+# 退出登录
+@main.route('/logout')
+def logout():
+    session.pop('logged_in', None)
+    return redirect(url_for('main.login'))
+
+
+# 403无权限页面
+@main.errorhandler(403)
+def forbidden(error):
+    return render_template('403.html'), 403
+
+
+# 数据统计-公司
+@main.route('/stat_company')
+@login_required
+def stat_company():
+    # 检查权限
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if not has_permission(current_user_id, 'stat'):
+        abort(403)  # 没有权限，拒绝访问
+
+    # 构建面包屑路径
+    breadcrumbs = [("数据统计", url_for('main.stat_company')), ("公司", url_for('main.stat_company')), ]
+
+    # 分页
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', PAGE_RECORD_NUM, type=int)
+
+    results, total_count = get_stat_company(page, per_page)
+    total_pages = (total_count + per_page - 1) // per_page
+    page_numbers = _generate_pagination(page, total_pages)
+
+    return render_template('stat_company.html', active_menu='stat_company', results=results, permissions=permissions_list, breadcrumbs=breadcrumbs, page_numbers=page_numbers, current_page=page)
+
+
+# 数据统计-付费
+@main.route('/stat_pay')
+@login_required
+def stat_pay():
+    # 检查权限
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if not has_permission(current_user_id, 'stat'):
+        abort(403)  # 没有权限，拒绝访问
+
+    # 构建面包屑路径
+    breadcrumbs = [("数据统计", url_for('main.stat_pay')), ("付费", url_for('main.stat_pay')), ]
+
+    results = get_stat_pay()
+
+    # 内存分页
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', PAGE_RECORD_NUM, type=int)
+    paginated_data, total_records, total_pages = paginate(results, page, per_page)
+
+    return render_template('stat_pay.html', active_menu='stat_pay', results=paginated_data, permissions=permissions_list, breadcrumbs=breadcrumbs, page=page, total_pages=total_pages,
+                           per_page=per_page)
+
+
+# 数据统计-首次付费
+@main.route('/stat_pay_frist')
+@login_required
+def stat_pay_first():
+    # 检查权限
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if not has_permission(current_user_id, 'stat'):
+        abort(403)  # 没有权限，拒绝访问
+
+    # 构建面包屑路径
+    breadcrumbs = [("数据统计", url_for('main.stat_pay_first')), ("首次付费", url_for('main.stat_pay_first')), ]
+
+    results = get_stat_pay_first()
+
+    # 内存分页
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', PAGE_RECORD_NUM, type=int)
+    paginated_data, total_records, total_pages = paginate(results, page, per_page)
+
+    return render_template('stat_pay_first.html', active_menu='stat_pay_first', results=paginated_data, permissions=permissions_list, breadcrumbs=breadcrumbs, page=page, total_pages=total_pages,
+                           per_page=per_page)
+
+
+# 核心数据统计
+@main.route('/stat_operate')
+@login_required
+def stat_operate():
+    # 检查权限
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    tab = request.args.get('tab', 'home')
+    if not has_permission(current_user_id, 'stat'):
+        abort(403)  # 没有权限，拒绝访问
+
+    # 构建面包屑路径
+    breadcrumbs = [("数据统计", url_for('main.stat_operate')), ("核心数据统计", url_for('main.stat_operate')), ]
+
+    results, sumresults = get_stat_operate()
+
+    # 内存分页
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 31, type=int)
+    paginated_data, total_records, total_pages = paginate(results, page, per_page)
+    sum_paginated_data, sum_total_records, sum_total_pages = paginate(sumresults, page, per_page)
+
+    return render_template('stat_operate.html', active_menu='stat_operate', results=paginated_data, sumresults=sum_paginated_data, permissions=permissions_list, breadcrumbs=breadcrumbs, page=page,
+                           total_pages=total_pages, sum_total_pages=sum_total_pages, per_page=per_page, current_tab=tab)
+
+
+# 数据统计-试用期
+@main.route('/stat_period')
+@login_required
+def stat_period():
+    # 检查权限
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if not has_permission(current_user_id, 'stat'):
+        abort(403)  # 没有权限，拒绝访问
+    custom_type = request.args.get('custom_type')
+    # 构建面包屑路径
+    breadcrumbs = [("数据统计", url_for('main.stat_period')), ("试用期统计", url_for('main.stat_period')), ]
+
+    if custom_type == '' or custom_type is None:
+        results = get_stat_period()
+    else:
+        results = get_stat_period_search(custom_type);
+
+    # 内存分页
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', PAGE_RECORD_NUM, type=int)
+    paginated_data, total_records, total_pages = paginate(results, page, per_page)
+
+    return render_template('stat_period.html', active_menu='stat_period', results=paginated_data, permissions=permissions_list, breadcrumbs=breadcrumbs, status_filter={'custom_type': custom_type},
+                           page=page, total_pages=total_pages, per_page=per_page)
+
+
+# 角色列表
+@main.route('/roles')
+@login_required
+def roles():
+    # 检查权限
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if not has_permission(current_user_id, 'role'):
+        abort(403)  # 没有权限，拒绝访问
+
+    # 构建面包屑路径
+    breadcrumbs = [("角色管理", url_for('main.roles')), ]
+
+    results = get_roles()
+
+    # 内存分页
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', PAGE_RECORD_NUM, type=int)
+    paginated_data, total_records, total_pages = paginate(results, page, per_page)
+
+    return render_template('role_list.html', active_menu='roles', results=paginated_data, permissions=permissions_list, breadcrumbs=breadcrumbs, page=page, total_pages=total_pages, per_page=per_page)
+
+
+# 角色编辑
+@main.route('/add_role', methods=['GET', 'POST'])
+@login_required
+def add_role():
+    breadcrumbs = [("角色列表", url_for('main.roles')), ("角色添加", url_for('main.add_role')), ]
+
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    permissions_tree = get_permissions_tree()
+    selected_permissions = get_selected_permissions(id)
+
+    if request.method == 'POST':
+        data = request.json
+        role_name = data.get('role_name')
+        permissions = data.get('permissions')
+
+        # 更新角色信息
+        insert_role(role_name, permissions)
+
+        return jsonify({"success": True, "message": "角色信息添加成功！"})
+
+    # 确保所有传递给模板的变量都是有效且可序列化的
+    return render_template('role_add.html', active_menu='roles', breadcrumbs=breadcrumbs, permissions=permissions_list, permissions_tree=permissions_tree, selected_permissions=selected_permissions)
+
+
+# 角色编辑
+@main.route('/edit_role/<int:id>', methods=['GET', 'POST'])
+@login_required
+def edit_role(id):
+    resultid = get_role_by_id(id)
+
+    if resultid is None:
+        return "角色不存在", 404
+
+    breadcrumbs = [("角色列表", url_for('main.roles')), ("角色修改", url_for('main.edit_role', id=id)), ]
+
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    permissions_tree = get_permissions_tree()
+    selected_permissions = get_selected_permissions(id)
+
+    if request.method == 'POST':
+        data = request.json
+        role_name = data.get('role_name')
+        permissions = data.get('permissions')
+
+        # 更新角色信息
+        update_role(id, role_name, permissions)
+
+        return jsonify({"success": True, "message": "角色信息更新成功！"})
+
+    # 确保所有传递给模板的变量都是有效且可序列化的
+    return render_template('role_edit.html', active_menu='roles', breadcrumbs=breadcrumbs, resultid=resultid, permissions=permissions_list, permissions_tree=permissions_tree,
+        selected_permissions=selected_permissions)
+
+
+# 删除角色
+@main.route('/del_role', methods=['POST'])
+@login_required
+def del_role():
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+
+    data = request.json
+    role_id = data.get('role_id')
+
+    if role_id:
+        del_role_record(role_id)
+        log_operation(session['user_id'], common.OPERATION_LOG_ROLE_DEL, role_id)
+
+    return jsonify({"success": True, "message": "删除角色成功！"})
+
+
+# 公司列表
+@main.route('/companies')
+@login_required
+def companies(status_filter=None):
+    # 检查权限
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if not has_permission(current_user_id, 'company'):
+        abort(403)  # 没有权限，拒绝访问
+
+    # 构建面包屑路径
+    breadcrumbs = [("客户列表", url_for('main.companies')), ]
+
+    page = request.args.get('page', 1, type=int)
+    per_page = 50  # 每页显示的数量
+    # sort_column = request.args.get('sort_column', 'company_id')  # Default sorting column
+    # sort_direction = request.args.get('sort_direction', 'asc')  # Default sorting direction
+
+    # Extract additional parameters from the request
+    # status = request.args.get('status')
+    account_status = request.args.get('account_status')
+    expiry_month = request.args.get('expiry_month')
+    used_modules = request.args.get('functionality')
+    company_id = request.args.get("company_id")
+    category = request.args.get("category")
+    start_value = request.args.get('start_value')
+    end_value = request.args.get('end_value')
+    api = request.args.get('api')
+    # start_value = request.args.get("start_value", type=int)
+    # end_value = request.args.get("end_value", type=int)
+
+    print(account_status)
+    print(expiry_month)
+    print(used_modules)
+    print(start_value)
+    print(end_value)
+
+    if account_status in ('', None) and used_modules in ('', None) and expiry_month in ('', None) and company_id in ('', None) and category in ('', None) and api in ('', None):
+        results, total_count = get_companies(page, per_page)
+    else:
+        results, total_count = get_companies_search(page, per_page, account_status, used_modules, expiry_month, company_id, category, start_value, end_value,api)
+
+    # Call get_companies with the extracted parameters
+    # results, total_count = get_companies(page, per_page, account_status, used_modules, expiry_month)
+
+    total_pages = (total_count + per_page - 1) // per_page
+
+    page_numbers = _generate_pagination(page, total_pages)
+
+    return render_template('company_list.html', active_menu='companies', results=results, permissions=permissions_list, breadcrumbs=breadcrumbs,
+                           status_filter={'account_status': account_status, 'expiry_month': expiry_month, 'category': category,"api":api}, total_count=total_count, page_numbers=page_numbers, current_page=page)
+
+
+# 试用期列表
+@main.route('/unpay_companies')
+@login_required
+def unpay_companies(status_filter=None):
+    # 检查权限
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if not has_permission(current_user_id, 'company'):
+        abort(403)  # 没有权限，拒绝访问
+
+    # 构建面包屑路径
+    breadcrumbs = [("试用期客户", url_for('main.unpay_companies')), ]
+
+    page = request.args.get('page', 1, type=int)
+    per_page = 30  # 每页显示的数量
+
+    company_id = request.args.get("company_id")
+
+    print(company_id)
+
+    if company_id in ('', None):
+        results, total_count = get_unpay_companies(page, per_page)
+    else:
+        results, total_count = get_unpay_companies_search(page, per_page, company_id)
+
+    # Call get_companies with the extracted parameters
+    # results, total_count = get_companies(page, per_page, account_status, used_modules, expiry_month)
+
+    total_pages = (total_count + per_page - 1) // per_page
+
+    page_numbers = _generate_pagination(page, total_pages)
+
+    return render_template('unpay_companies_list.html', active_menu='unpay_companies', results=results, permissions=permissions_list, breadcrumbs=breadcrumbs, total_count=total_count,
+                           page_numbers=page_numbers, current_page=page)
+
+
+@main.route('/get_company_remarks/<company_id>', methods=['GET'])
+def get_company_remarks(company_id):
+    # Query the database to get existing remarks for the given company_id
+    # Assuming you have a model named Company and a field named remarks
+    basic_info, period_target = get_unpay_companies_remark(company_id)
+    return jsonify({'basic_info': basic_info, 'period_target': period_target})
+
+
+@main.route('/save_company_remarks', methods=['POST'])
+def save_company_remarks():
+    company_id = request.form.get('company_id')
+    remarks = request.form.get('remarks')
+    planning = request.form.get('planning')
+    current_user_id = session.get('user_id')
+    print("current_user_id", current_user_id)
+    action = request.form.get('action')
+
+    if action == "customer-process":
+        state = "r"
+    elif action == "save":
+        state = None
+
+    base_infor_input = ['input_ispms', 'input_direct', 'input_syn', 'input_reception', 'input_checkin', 'input_deposit', 'input_cleaning', 'input_price', 'input_chat', 'input_evaluate',
+        'input_recustomer', 'input_einvestor', 'input_finance']
+
+    checkbox_input = ['input_check1', 'input_check2', 'input_check3', 'input_check4', 'input_optional_check1', 'input_optional_check2', 'input_optional_check3', 'input_optional_check4']
+
+    # 从请求中提取指定字段的值
+
+    basic_info = {key: request.form[key] for key in base_infor_input if key in request.form}
+    checkbox_value = {key: request.form[key] for key in checkbox_input if key in request.form}
+
+    # 转换为 JSON 字符串
+    basic_infor_json = json.dumps(basic_info, ensure_ascii=False)
+    checkbox_value_json = json.dumps(checkbox_value, ensure_ascii=False)
+
+    # 打印接收到的数据，用于调试
+    print(f"Received data: {basic_infor_json}")
+    print(f"Received data: {checkbox_value_json}")
+    update_unpay_companies_remark(company_id, basic_infor_json, checkbox_value_json, current_user_id, state)
+
+    # 重定向到指定页面
+    return redirect(url_for('main.unpay_companies', page=request.form.get('current_page')))
+
+
+# #售前客服协助跟进
+# @main.route('/presales_followup')
+# @login_required
+# def presales_followup():
+#     # 检查权限
+#     current_user_id = session.get('user_id')
+#     company_id = request.args.get("company_id")
+#     account_status = request.args.get('account_status')
+#     presaler = request.args.get('presaler')
+#     new_count = None
+#     persaler_list_value= request.args.get('btnradio')
+#     btnradio=request.args.get('btnradio')
+#     presalerlist=''
+#     task_status=request.args.get('task_status')
+#
+#     permissions_list = has_permission_show(current_user_id)
+#     if not has_permission(current_user_id, 'company'):
+#         abort(403)  # 没有权限，拒绝访问
+#
+#     # 构建面包屑路径
+#     breadcrumbs = [
+#         ("客服协助跟进表", url_for('main.presales_followup')),
+#     ]
+#
+#
+#
+#     page = request.args.get('page', 1, type=int)
+#     per_page = 30  # 每页显示的数量
+#
+#
+#
+#
+#
+#     if company_id in ('', None) and account_status in ('', None) and presaler in ('', None) and task_status in ('', None):
+#         results, total_count, new_count,presalerlist, persaler_list_value = get_followup_companies(page, per_page,current_user_id)
+#
+#     else:
+#         results, total_count,new_count= get_followup_companies_search(page, per_page,company_id,account_status, presaler,btnradio,task_status,current_user_id)
+#     total_pages = (total_count + per_page - 1) // per_page
+#
+#     page_numbers = _generate_pagination(page, total_pages)
+#     # print("search_persaler_list_value: " + str(persaler_list_value))
+#     # print("获取售前人员:" + presalerlist)
+#
+#     return render_template('presales_followup_list.html', active_menu='presales_followup', results=results,permissions=permissions_list,
+#                            breadcrumbs=breadcrumbs,status_filter={'account_status': account_status,"presalerlist": presalerlist,"task_status":task_status},total_count=total_count,page_numbers=page_numbers, current_page=page, new_count=new_count, persaler_list_value= persaler_list_value,
+#                            presalerlist=presalerlist)
+
+
+# 售前跟进
+@main.route('/presales_progress')
+@login_required
+def presales_progress():
+    # 检查权限
+    current_user_id = session.get('user_id')
+    company_id = request.args.get("company_id")
+    account_status = request.args.get('account_status')
+    operator = request.args.get('operator')
+    date_select = request.args.get('date_select')
+    persaler = request.args.get('persaler')
+    btnradio = request.args.get('btnradio')
+    search_api = request.args.get('search_api')
+    operating_sub = request.args.get('operating_sub')
+    star = request.args.get('star')
+    room_num = request.args.get('room_num')
+    api_channel = request.args.get('api_channel')
+    coo_name = request.args.get('coo_name')
+    search_tag = request.args.get('search_tag')
+    presalerlist = ''
+    task_status = request.args.get('task_status')
+    companyType = request.args.get('companyType')
+    if persaler not in (None, ''):
+        persaler = int(persaler)
+    permissions_list = has_permission_show(current_user_id)
+    if not has_permission(current_user_id, 'company'):
+        abort(403)  # 没有权限，拒绝访问
+
+    # 构建面包屑路径
+    breadcrumbs = [("售前跟进", url_for('main.presales_progress')), ]
+
+    results, total_count, new_count, persaler_list_value, presalerlist, persaler_names, unclaimed_count, step_one_count, step_two_count, data_search, step_four_count, step_six_count = get_presales_progress(
+        company_id, account_status, operator, btnradio, task_status, current_user_id, date_select, persaler, search_api,operating_sub,star,room_num,api_channel,coo_name,search_tag,companyType)
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', PAGE_RECORD_NUM, type=int)
+    paginated_data, total_records, total_pages = paginate(results, page, per_page)
+    start_page = max(2, page - 3)
+    end_page = min(page + 4, total_pages - 1)
+
+    return render_template('presales_progress_list.html', active_menu='presales_progress', results=paginated_data, permissions=permissions_list, breadcrumbs=breadcrumbs,
+                           status_filter={'account_status': account_status, "presalerlist": presalerlist, "task_status": task_status, "operator": operator, "persaler": persaler,
+                                          "search_api": search_api,"star":star,"room_num":room_num,"api_channel":api_channel,"coo_name":coo_name,"search_tag":search_tag,"companyType":companyType}, page=page, total_pages=total_pages, per_page=per_page, new_count=new_count, persaler_list_value=persaler_list_value,
+                           total_count=total_count, persaler_names=persaler_names, unclaimed_count=unclaimed_count, step_one_count=step_one_count, step_two_count=step_two_count,
+                           data_search=data_search, step_four_count=step_four_count, step_six_count=step_six_count, presalerlist=presalerlist, start_page=start_page, end_page=end_page)
+
+
+@main.route('/get_progress_exec/<company_id>', methods=['GET'])
+def get_progress_exec(company_id):
+    period_target, progress_exec, progress_description, presales_remark = get_followup_operdata(company_id)
+    return jsonify({'period_target': period_target, 'progress_exec': progress_exec, 'progress_description': progress_description, 'presales_remark': presales_remark})
+
+
+# 编辑合作伙伴
+@main.route('/do_presales_progress', methods=['GET', 'POST'])
+@login_required
+def do_presales_progress():
+    id = request.form.get('id')
+    resultid = get_presales_progress_id(id)
+    final_plan = ""
+    company_id = ""
+
+    # 构建面包屑路径
+    breadcrumbs = [("售前进程", url_for('main.presales_progress')), ("售前进程跟踪", url_for('main.presales_progress')), ]
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if request.method == 'POST':
+        progress_state = request.form.get('progress_state')
+        remark = request.form.get('remark')
+
+        presales_progress_id = update_presales_progress(id, progress_state, remark, current_user_id)
+
+        if progress_state == "3":
+            custom_description = "直连"
+        elif progress_state == "4":
+            custom_description = "转售后"
+        elif progress_state == "6":
+            custom_description = "放弃"
+        elif progress_state == "1":
+            custom_description = "备注"
+
+        log_operation(session['user_id'], common.OPERATION_LOG_PRESALES_PROGRESS_DO, id, custom_desc=custom_description)
+        # log_operation(session['user_id'], common.OPERATION_LOG_PRESALES_PROGRESS_DO, presales_progress_id)
+
+        return jsonify({"success": True})
+
+        # return redirect(url_for('main.presales_progress'))
+
+    return render_template('presales_progress_list_bak.html.bak', active_menu='presales_progress', breadcrumbs=breadcrumbs, resultid=resultid, permissions=permissions_list)
+
+
+# 保存售前新公司
+@main.route('/add_presales_progress', methods=['GET', 'POST'])
+@login_required
+def add_presales_progress():
+    final_plan = ""
+    abnormal_result = ""
+
+    # 构建面包屑路径
+    breadcrumbs = [("售前进程", url_for('main.presales_progress')), ("售前进程跟踪", url_for('main.presales_progress')), ]
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+
+    if request.method == 'POST':
+        company_id = request.form.get('company_id')
+        yetai_remark = request.form.get('yetai_remark')
+        xin_remark = request.form.get('xin_remark')
+        current_remark = request.form.get('remark')
+        contact = request.form.get('contact')
+
+        result = presales_progress_add(company_id, current_user_id, current_remark, contact, yetai_remark, xin_remark)
+
+        if result == 1:
+            return jsonify(success=False, message="公司ID已存在")
+
+        log_operation(session['user_id'], common.OPERATION_LOG_PRESALES_PROGRESS_DO, result)
+        return jsonify(success=True, message="保存成功")
+
+    return render_template('presales_progress_add.html', active_menu='presales_progress', breadcrumbs=breadcrumbs, permissions=permissions_list, abnormal_result=abnormal_result)
+
+
+# # 保存售前新公司
+# @main.route('/update_presales_progress', methods=['GET','POST'])
+# @login_required
+# def update_presales_progress():
+#     final_plan = ""
+#     abnormal_result = ""
+#
+#     # 构建面包屑路径
+#     breadcrumbs = [
+#         ("售前进程", url_for('main.presales_progress')),
+#         ("售前进程跟踪", url_for('main.presales_progress')),
+#     ]
+#     current_user_id = session.get('user_id')
+#     permissions_list = has_permission_show(current_user_id)
+#
+#     if request.method == 'POST':
+#         company_id = request.form.get('company_id')
+#         contact = request.form.get('contact')
+#
+#         result = presales_progress_add(company_id, current_user_id, current_remark,contact)
+#
+#         if result == 1:
+#             return jsonify(success=False, message="公司ID已存在")
+#
+#         log_operation(session['user_id'], common.OPERATION_LOG_PRESALES_PROGRESS_DO, result)
+#         return jsonify(success=True, message="保存成功")
+#
+#     return render_template('presales_progress_add.html', active_menu='presales_progress', breadcrumbs=breadcrumbs, permissions=permissions_list, abnormal_result=abnormal_result)
+#
+
+
+# 售前数据规模选择:w,s
+@main.route('/update_presales_scale', methods=['POST'])
+def update_presales_scale():
+    selectedValue = request.form.get('selectedValue')
+    current_user_id = session.get('user_id')
+    uupdate_presales_scale_impl(current_user_id, selectedValue)
+
+    # 在此处您应该返回一个JSON响应，表示操作是否成功
+    return jsonify({"success": True})
+
+
+
+@main.route('/check_presales')
+def check_presales():
+    taskid = request.args.get('taskid')
+    # 查询数据库获取当前 presales 信息
+    presales_status,username = get_presales_by_taskid(taskid)  # 假设此函数返回 presales 字符串
+    return jsonify({'presales': presales_status if presales_status else '0',  # 认领状态（0表示未认领）
+        'username': username if username else ''  # 认领人姓名（若无则返回空字符串）
+    })
+
+
+@main.route('/claim_presales/<int:presales_id>', methods=['POST'])
+@login_required
+def claim_presales(presales_id):
+    current_user_id = session.get('user_id')
+
+    # 更新认领信息
+    update_claim_presales(presales_id, current_user_id)
+
+    # 记录操作日志
+    log_operation(session['user_id'], common.OPERATION_LOG_CLAIM_PRESALES, presales_id)
+
+    # 构建查询参数字典
+    query_params = {'page': request.form.get('current_page', '1'), 'account_status': request.form.get('account_status', ''), 'company_id': request.form.get('company_id', ''),
+        'operator': request.form.get('operator', ''), 'persaler': request.form.get('persaler', ''), 'date_select': request.form.get('date_select', ''),
+        'task_status': request.form.get('task_status', ''), 'search_api': request.form.get('search_api', ''), 'star': request.form.get('star', ''), 'room_num': request.form.get('room_num', ''),
+        'api_channel': request.form.get('api_channel', ''), 'coo_name': request.form.get('coo_name', ''), 'search_tag': request.form.get('search_tag', ''), 'operating_sub': request.form.get('operating_sub', '')}
+
+    # 过滤掉空值的参数
+    query_params = {k: v for k, v in query_params.items() if v}
+
+    return redirect(url_for('main.presales_progress', **query_params))
+
+
+@main.route('/batch_claim_presales', methods=['POST'])
+def batch_claim_presales():
+    data = request.get_json()
+    task_ids = data.get('task_ids', [])
+
+    # 检查 task_ids 是否为空
+    if not task_ids:
+        return jsonify({'success': False, 'message': '未选择任何任务'})
+
+    try:
+        # 获取当前用户 ID
+        current_user_id = session.get('user_id')
+        if not current_user_id:
+            return jsonify({'success': False, 'message': '用户未登录'})
+
+        # 调用批量更新函数
+        result = batch_update_claim_presales(task_ids, current_user_id)
+        if result:
+            return jsonify({'success': True, 'message': '批量认领成功'})
+        else:
+            return jsonify({'success': False, 'message': '批量认领失败'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@main.route('/refresh_today_data', methods=['POST'])
+def refresh_today_data():
+    try:
+        data = request.get_json()
+        date_str = data.get('date')
+
+        # 验证日期格式
+        try:
+            refresh_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'success': False, 'message': '无效的日期格式'}), 400
+
+        refresh_database_with_date(refresh_date)
+
+        return jsonify({'success': True, 'message': f'{refresh_date}数据刷新成功'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'服务器错误: {str(e)}'}), 500
+
+
+
+
+# 售前认领统计
+@main.route('/stat_presales')
+@login_required
+def stat_presales():
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    tab = request.args.get('tab', 'home')
+
+    if not has_permission(current_user_id, 'stat_presales'):
+        abort(403)
+
+    search_date = request.args.get('search_date', 'today')
+    breadcrumbs = [("售前人员统计", url_for('main.stat_presales'))]
+
+    # 获取原始数据
+    results, week_results,count_results = get_stat_presales()
+
+    # 后端聚合日报数据（按 stat_day 分组）
+    def merge_by_stat_day(data):
+        from collections import defaultdict
+        grouped = defaultdict(list)
+        for row in data:
+            stat_day = str(row['stat_day']).strip() if row['stat_day'] else ''
+            grouped[stat_day].append(row)
+
+        merged = []
+        for day, items in grouped.items():
+            for i, item in enumerate(items):
+                merged.append({
+                    'rowspan': len(items) if i == 0 else 0,
+                    'data': item
+                })
+        return merged
+
+    # 后端聚合周报数据（按 week 分组）
+    def merge_by_week(data):
+        from collections import defaultdict
+        grouped = defaultdict(list)
+        for row in data:
+            week = str(row['week']).strip() if row['week'] else ''
+            grouped[week].append(row)
+
+        merged = []
+        for wk, items in grouped.items():
+            for i, item in enumerate(items):
+                merged.append({
+                    'rowspan': len(items) if i == 0 else 0,
+                    'data': item
+                })
+        return merged
+
+    # 处理日报数据（分页前先聚合）
+    merged_daily = merge_by_stat_day(results)
+    # 处理周报数据
+    merged_weekly = merge_by_week(week_results)
+
+    # 分页处理
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+
+    def paginate_data(data, page, per_page):
+        start = (page - 1) * per_page
+        end = start + per_page
+        paginated = data[start:end]
+        total_records = len(data)
+        total_pages = (total_records + per_page - 1) // per_page
+        return paginated, total_records, total_pages
+
+    paginated_daily, total_records_daily, total_pages_daily = paginate_data(merged_daily, page, per_page)
+    paginated_weekly, total_records_weekly, total_pages_weekly = paginate_data(merged_weekly, page, per_page)
+
+    start_page = max(2, page - 3)
+    end_page = min(page + 4, total_pages_daily - 1)
+
+    return render_template(
+        'stat_presales.html',
+        active_menu='stat_presales',
+        status_filter={'search_date': search_date},
+        daily_data=paginated_daily,
+        weekly_data=paginated_weekly,
+        count_results=count_results,
+        permissions=permissions_list,
+        breadcrumbs=breadcrumbs,
+        page=page,
+        total_pages=total_pages_daily,
+        per_page=per_page,
+        start_page=start_page,
+        end_page=end_page,
+        current_tab=tab
+    )
+
+
+
+
+# #保存联系方式
+@main.route('/save_contact', methods=['POST'])
+@login_required
+def save_contact():
+    current_user_id = session.get('user_id')
+    id = request.form.get('id')
+    taskId = request.form.get('taskId')
+    company_id = request.form.get('company_id')
+    contact = request.form.get('contact')
+    xin_remark = request.form.get('xin_remark')  # 格式："中,一般,弱"
+    yetai_remark = request.form.get('yetai_remark')
+
+    # 将心态备注转换为HTML格式
+    formatted_remark = format_xin_remark(xin_remark)
+
+    update_contact(company_id, contact, taskId, yetai_remark, formatted_remark)
+    log_operation(session['user_id'], common.OPERATION_LOG_PRESALES_PROGRESS_UPDATE, id)
+    return redirect(url_for('main.presales_progress'))
+
+
+def format_xin_remark(xin_remark):
+    """
+    将心态备注转换为图片中的简洁格式
+    输入格式："中,中,中"
+    输出格式："意愿：中\n沟通：中\n能力：中"
+    """
+    if not xin_remark:
+        return ""
+
+    parts = xin_remark.split(',')
+    if len(parts) != 3:
+        return xin_remark
+
+    return f"意愿：{parts[0]}\n沟通：{parts[1]}\n能力：{parts[2]}"
+
+
+# 编辑合作伙伴
+@main.route('/save_base', methods=['GET', 'POST'])
+@login_required
+def save_base():
+    id = request.form.get('id')
+
+    resultid = get_presales_progress_id(id)
+
+    # 构建面包屑路径
+    breadcrumbs = [("售前进程", url_for('main.presales_progress')), ("售前进程跟踪", url_for('main.presales_progress')), ]
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if request.method == 'POST':
+        company_id = request.form.get('company_id')
+        contact = request.form.get('contact')
+
+        update_contact(company_id, contact, id)
+
+        log_operation(session['user_id'], common.OPERATION_LOG_PRESALES_PROGRESS_UPDATE, id)
+
+        return jsonify({"success": True})
+
+        # return redirect(url_for('main.presales_progress'))
+
+    return render_template('presales_progress_list_bak.html.bak', active_menu='presales_progress', breadcrumbs=breadcrumbs, resultid=resultid, permissions=permissions_list)
+
+
+# 保存售前客服跟进表-基本情况和跟进目标信息
+@main.route('/save_progress_exec', methods=['POST'])
+def save_progress_exec():
+    company_id = request.form.get('company_id')
+
+    checkbox_input = ['input_check1', 'input_check2', 'input_check3', 'input_check3', 'input_optional_check1', 'input_optional_check2', 'input_optional_check3', 'input_optional_check4']
+
+    # 从请求中提取指定字段的值
+
+    checkbox_value = {key: request.form[key] for key in checkbox_input if key in request.form}
+
+    # 转换为 JSON 字符串
+    checkbox_value_json = json.dumps(checkbox_value, ensure_ascii=False)
+
+    # 打印接收到的数据，用于调试
+    print(f"Received data: {checkbox_value_json}")
+    update_progress_exec_impl(company_id, checkbox_value_json)
+    return redirect(url_for('main.presales_followup', page=request.form.get('current_page')))
+
+
+# 保存保存售前客服跟进表-跟进说明及备注
+@main.route('/save_progress_description', methods=['POST'])
+def save_progress_description():
+    company_id = request.form.get('company_id')
+    update_progress_description_impl(company_id, request.form.get('progress_description'), request.form.get('presales_remark'))
+    return redirect(url_for('main.presales_followup', page=request.form.get('current_page')))
+
+
+#保存标签
+@main.route('/save_tags', methods=['POST'])
+def save_tags():
+    taskid = request.form.get('taskid')
+    tags = request.form.get('tags')
+
+    try:
+        update_save_tags(taskid=taskid, tags=tags)
+
+        # tag_list = [tag.strip() for tag in tags.split(',') if tag.strip()]
+        #
+        # for tag_id in tag_list:
+        #     if tag_id == "1":
+        #         custom_description = "复盘"
+        #         log_operation(session['user_id'], common.OPERATION_LOG_PRESALES_PROGRESS_DO, taskid, custom_desc=custom_description)
+        #     elif tag_id == "2":
+        #         custom_description = "重点跟踪"
+        #         log_operation(session['user_id'], common.OPERATION_LOG_PRESALES_PROGRESS_DO, taskid, custom_desc=custom_description)
+
+
+
+
+
+        return jsonify({"status": "success"})  # ✅ 修改这里：用 status 字段
+    except Exception as e:
+        print(f"Error saving tags: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@main.route('/update_scale', methods=['POST'])
+def update_scale():
+    selectedValue = request.form.get('selectedValue')
+    current_user_id = session.get('user_id')
+    update_scale_impl(current_user_id, selectedValue)
+
+    # 在此处您应该返回一个JSON响应，表示操作是否成功
+    return jsonify({"success": True})
+
+
+@main.route('/update_customer', methods=['POST'])
+def update_customer():
+    company_id = request.form.get('company_id')
+    type = request.form.get('type')
+    if type == "1":
+        current_user_id = session.get('user_id')
+    else:
+        current_user_id = request.form.get('customer_id')
+    update_customer_impl(current_user_id, company_id)
+    return redirect(url_for('main.presales_followup', page=request.form.get('current_page')))
+
+
+# 奖励金查询
+# @main.route('/bonus_search/<code>', methods=['GET'])
+@main.route('/bonus_search')
+@login_required
+def bonus_search():
+    # 检查权限
+    results = ""
+    code = request.args.get('code')
+    userid = request.args.get('userid')
+    search_type = "";
+    current_user_id = session.get('user_id')
+    total_count = 0
+    permissions_list = has_permission_show(current_user_id)
+    if not has_permission(current_user_id, 'company'):
+        abort(403)  # 没有权限，拒绝访问
+
+    # 构建面包屑路径
+    breadcrumbs = [("客户管理", url_for('main.bonus_search')), ("奖励金查询", url_for('main.bonus_search')), ]
+
+    if code is not None and code != "" or userid is not None and userid != "":
+        results, total_count = get_bonus(userid, code)
+    else:
+        results = ""
+    # results = get_bonus(code)
+
+    # 内存分页
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', PAGE_RECORD_NUM, type=int)
+    paginated_data, total_records, total_pages = paginate(results, page, per_page)
+
+    return render_template('bonus_search.html', active_menu='bonus_search', results=results, permissions=permissions_list, code_to_check=code, total_count=total_count, userid_to_check=userid,
+                           breadcrumbs=breadcrumbs, page=page, total_pages=total_pages, per_page=per_page)
+
+
+# 订单查询
+# @main.route('/bonus_search/<code>', methods=['GET'])
+@main.route('/contract_search')
+@login_required
+def contract_search():
+    # 检查权限
+    results = ""
+    baseresults = ""
+    csxresults = ""
+
+    code = request.args.get('contract_code')
+    Batch_Query_code = request.args.get('Batch_Query')
+    current_user_id = session.get('user_id')
+    total_count = 0
+    permissions_list = has_permission_show(current_user_id)
+    if not has_permission(current_user_id, 'company'):
+        abort(403)  # 没有权限，拒绝访问
+
+    # 构建面包屑路径
+    breadcrumbs = [("客户管理", url_for('main.contract_search')), ("订单查询", url_for('main.contract_search')), ]
+
+    if code is not None and code != "":
+        code = code.replace(" ", "")
+        if code:
+            baseresults, csxresults, total_count = Batchget_contract(code)
+        else:
+            results = ""
+    if Batch_Query_code is not None and Batch_Query_code != "":
+        # code = Batch_Query_code.strip()
+        # code = code.split(',')
+        if Batch_Query_code:
+            baseresults, csxresults, total_count = Batchget_contract(Batch_Query_code)
+        else:
+            results = ""
+    # results = get_bonus(code)
+
+    # 内存分页
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', PAGE_RECORD_NUM, type=int)
+    paginated_data, total_records, total_pages = paginate(results, page, per_page)
+
+    return render_template('contract_search.html', active_menu='contract_search', baseresults=baseresults, csxresults=csxresults, permissions=permissions_list, code_to_check=code,
+                           total_count=total_count, breadcrumbs=breadcrumbs, page=page, total_pages=total_pages, per_page=per_page)
+
+
+# 读取合作推广
+@main.route('/coop_ex')
+@login_required
+def coop_ex():  # put application's code here
+    # 构建面包屑路径
+    breadcrumbs = [("合作推广列表", url_for('main.coop_ex')), ]
+    partner = None
+    code = None
+    current_user_id = session.get('user_id')
+    status_filter = request.args.get('status')
+    permissions_list = has_permission_show(current_user_id)
+    partner = request.args.get('partner')
+    code = request.args.get('code')
+    results = get_coop_ex(partner, code, status_filter)
+
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', PAGE_RECORD_NUM, type=int)
+    paginated_data, total_records, total_pages = paginate(results, page, per_page)
+
+    return render_template('coop_ex.html', active_menu='coop_ex', results=paginated_data, permissions=permissions_list, breadcrumbs=breadcrumbs, current_user_id=current_user_id,
+                           status_filter=status_filter, page=page, total_pages=total_pages, per_page=per_page)
+
+
+# 添加合作伙伴
+@main.route('/add_coop_ex', methods=['GET', 'POST'])
+@login_required
+def add_coop_ex():
+    # 构建面包屑路径
+    breadcrumbs = [("合作推广列表", url_for('main.coop_ex')), ("添加合作伙伴", url_for('main.add_coop_ex')), ]
+
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if request.method == 'POST':
+        name = request.form.get('name')
+        phone = request.form.get('phone')
+        code = request.form.get('code')
+        area = request.form.get('area')
+        wx_id = request.form.get('wx_id')
+        remark = request.form.get('remark')
+        discounts = request.form.get('discounts')
+
+        # h获取工作流todo
+        # todo_userid = get_flow_todo('coop_ex', 1)
+        coop_ex_id = add_new_coop_ex(name, phone, wx_id, area, code, remark, discounts)
+
+        log_operation(session['user_id'], common.OPERATION_LOG_COOP_EX_ADD, coop_ex_id)
+        return redirect(url_for('main.coop_ex'))
+
+    return render_template('coop_add.html', active_menu='coop_ex', breadcrumbs=breadcrumbs, permissions=permissions_list)
+
+
+# 添加合作公司
+@main.route('/add_company_coop_ex<int:id>', methods=['GET', 'POST'])
+@login_required
+def add_company_coop_ex(id):
+    resultid = get_coop_id(id)
+    # 构建面包屑路径
+    breadcrumbs = [("合作推广列表", url_for('main.coop_ex')), ("添加合作公司", url_for('main.add_coop_ex')), ]
+
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if request.method == 'POST':
+        add_company = request.form.get('add_company')
+        # discounts = request.form.get('discounts')
+
+        # h获取工作流todo
+        # todo_userid = get_flow_todo('coop_ex', 1)
+        coop_ex_id = add_company_coop(id, add_company)
+
+        log_operation(session['user_id'], common.OPERATION_LOG_COOP_EX_ADD, coop_ex_id)
+        return redirect(url_for('main.coop_ex'))
+
+    return render_template('coop_add_company.html', active_menu='coop_ex', resultid=resultid, breadcrumbs=breadcrumbs, permissions=permissions_list)
+
+
+# 添加合作公司_公共
+@main.route('/add_company_coop_ex_open<int:id>', methods=['GET', 'POST'])
+@login_required
+def add_company_coop_ex_open(id):
+    resultid = get_coop_id(id)
+    # 构建面包屑路径
+    breadcrumbs = [("合作推广列表", url_for('main.coop_ex_open')), ("添加合作公司", url_for('main.coop_ex_open')), ]
+
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if request.method == 'POST':
+        add_company = request.form.get('add_company')
+        discounts = request.form.get('discounts')
+
+        # h获取工作流todo
+        # todo_userid = get_flow_todo('coop_ex', 1)
+        coop_ex_id = add_company_coop(id, add_company)
+
+        log_operation(session['user_id'], common.OPERATION_LOG_COOP_EX_ADD, coop_ex_id)
+        return redirect(url_for('main.coop_ex_open'))
+
+    return render_template('coop_add_company_open.html', active_menu='coop_ex', resultid=resultid, breadcrumbs=breadcrumbs, permissions=permissions_list)
+
+
+# 编辑合作伙伴
+@main.route('/do_coop_ex<int:id>', methods=['GET', 'POST'])
+@login_required
+def do_coop_ex(id):
+    resultid = get_coop_id(id)
+    final_plan = ""
+    company_id = ""
+
+    # 构建面包屑路径
+    breadcrumbs = [("合作推广列表", url_for('main.coop_ex')), ("编辑合作推广", url_for('main.coop_ex')), ]
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if request.method == 'POST':
+        name = request.form.get('name')
+        phone = request.form.get('phone')
+        code = request.form.get('code')
+        area = request.form.get('area')
+        wx_id = request.form.get('wx_id')
+        remark = request.form.get('remark')
+        discounts = request.form.get('discounts')
+
+        update_coop_ex(id, name, phone, wx_id, area, code, remark, discounts)
+        log_operation(session['user_id'], common.OPERATION_LOG_COOP_EX_DO, id)
+
+        return redirect(url_for('main.coop_ex'))
+
+    return render_template('coop_ex_do.html', active_menu='coop_ex', breadcrumbs=breadcrumbs, resultid=resultid, permissions=permissions_list)
+
+
+@main.route('/update_authority/<int:id>', methods=['POST'])
+def update_authority(id):
+    data = request.get_json()
+    status = data.get('status')
+
+    # 更新数据库中的状态
+    # 这里假设有一个名为 update_status_in_db 的函数用于更新状态
+    success = update_authority_db(id, status)
+
+    if success:
+        return jsonify({'message': 'Status updated successfully'}), 200
+    else:
+        return jsonify({'error': 'Failed to update status'}), 500
+
+
+# 读取合作推广公共版
+@main.route('/coop_ex_open')
+@login_required
+def coop_ex_open():  # put application's code here
+    # 构建面包屑路径
+    breadcrumbs = [("合作推广列表", url_for('main.coop_ex_open')), ]
+    partner = None
+    code = None
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    partner = request.args.get('partner')
+    code = request.args.get('code')
+    open = "1"
+    # if partner in ('', None) and code in ('', None):
+    #     results = get_coop_ex()
+    # else:
+    results = get_coop_ex(partner, code, open)
+
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', PAGE_RECORD_NUM, type=int)
+    paginated_data, total_records, total_pages = paginate(results, page, per_page)
+
+    return render_template('coop_ex_open.html', active_menu='coop_ex_open', results=paginated_data, permissions=permissions_list, breadcrumbs=breadcrumbs, current_user_id=current_user_id, page=page,
+                           total_pages=total_pages, per_page=per_page)
+
+
+# API列表
+@main.route('/api_list')
+@login_required
+def api_list():  # put application's code here
+    # 构建面包屑路径
+    breadcrumbs = [("API列表", url_for('main.api_list')), ]
+    current_user_id = session.get('user_id')
+    # status_filter = request.args.get('status')
+    permissions_list = has_permission_show(current_user_id)
+    company_id = request.args.get('company_id')
+    appid = request.args.get('appid')
+    channel_address = request.args.get('channel')
+    yuming = request.args.get('yuming')
+    channels = get_channel()
+    # code = request.args.get('code')
+    # if partner in ('', None) and code in ('', None):
+    #     results = get_coop_ex()
+    # else:
+    results, total_count = get_api_list(company_id, channel_address, appid,yuming)
+
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', PAGE_RECORD_NUM, type=int)
+    paginated_data, total_records, total_pages = paginate(results, page, per_page)
+    start_page = max(2, page - 3)
+    end_page = min(page + 4, total_pages - 1)
+    return render_template('api_list.html', active_menu='api_list', results=paginated_data, permissions=permissions_list, breadcrumbs=breadcrumbs, current_user_id=current_user_id, page=page,
+                           total_pages=total_pages, per_page=per_page, start_page=start_page, end_page=end_page,channels=channels, status_filter={'channel_address': channel_address}, total_count=total_count)
+
+
+
+# 添加接口授权
+@main.route('/add_api', methods=['GET', 'POST'])
+@login_required
+def add_api():
+    # 构建面包屑路径
+    breadcrumbs = [("API列表", url_for('main.api_list')), ("添加接口授权", url_for('main.add_api')), ]
+    channels = get_channel()
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if request.method == 'POST':
+        company_id = request.form.get('company_id').strip()
+        channel_id = request.form.get('channel')
+        channel_name = request.form.get('channel_name')
+        pushaddress = request.form.get('pushaddress').strip()
+
+        # h获取工作流todo
+        # todo_userid = update_api_data('coop_ex', 1)
+        result, appid, secret, pushaddress, company_id = update_api_data(company_id, channel_id, channel_name, pushaddress)
+
+        if result == 1:
+            return jsonify(success=False, message="公司ID已有接口账号，请勿重复创建")
+        elif result == 2:
+            return jsonify(success=False, message="公司id不存在，请输入正确的公司id")
+        elif result == 0:
+            return jsonify({"success": True})
+
+        log_operation(session['user_id'], common.OPERATION_LOG_ADD_API, appid)  # return redirect(url_for('main.api_list'))
+
+    return render_template('api_add.html', active_menu='api_add', breadcrumbs=breadcrumbs, permissions=permissions_list, channels=channels)
+
+
+# 添加接口授权
+@main.route('/do_api/<int:id>', methods=['GET', 'POST'])
+@login_required
+def do_api(id):
+    # 构建面包屑路径
+    breadcrumbs = [("API列表", url_for('main.api_list')), ("编辑接口授权", url_for('main.do_api', id=id)), ]
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    api = get_api(id)
+
+    if not api:
+        abort(404)  # API不存在，返回404错误
+
+    if request.method == 'POST':
+        push_add = request.form.get('push_add').strip()
+
+        updata_pushadd(id, push_add)
+
+        # 成功更新后重定向到API列表页面
+        return redirect(url_for('main.api_list'))
+
+    return render_template('api_do.html', active_menu='api_list', breadcrumbs=breadcrumbs, permissions=permissions_list, api=api)
+
+
+# @main.route('/add_company_coop_ex_open<int:id>', methods=['GET', 'POST'])
+# @login_required
+# def add_company_coop_ex_open(id):
+#     resultid = get_coop_id(id)
+#     # 构建面包屑路径
+#     breadcrumbs = [
+#         ("合作推广列表", url_for('main.coop_ex_open')),
+#         ("添加合作公司", url_for('main.coop_ex_open')),
+#     ]
+#
+#     current_user_id = session.get('user_id')
+#     permissions_list = has_permission_show(current_user_id)
+#     if request.method == 'POST':
+#         add_company = request.form.get('add_company')
+#         discounts = request.form.get('discounts')
+#
+#         # h获取工作流todo
+#         # todo_userid = get_flow_todo('coop_ex', 1)
+#         coop_ex_id = add_company_coop(id, add_company)
+
+
+# 特殊申请-账号注销
+@main.route('/code_modify')
+@login_required
+def code_modify():  # put application's code here
+    # 构建面包屑路径
+    breadcrumbs = [("添加邀请码", url_for('main.code_modify')), ]
+    results = ""
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    print(permissions_list)
+    code = request.args.get('code')
+    company_id = request.args.get('company_id')
+    if company_id not in (None, "") or code not in (None, ""):
+        results = get_code_modify_search(company_id, code)
+
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', PAGE_RECORD_NUM, type=int)
+    paginated_data, total_records, total_pages = paginate(results, page, per_page)
+
+    return render_template('code_modify_list.html', active_menu='code_modify', results=paginated_data, permissions=permissions_list, breadcrumbs=breadcrumbs, current_user_id=current_user_id,
+                           page=page, total_pages=total_pages, per_page=per_page)
+
+
+@main.route('/save_code_modify', methods=['POST'])
+@login_required
+def save_code_modify():
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    company_id = request.form.get('company_id').strip()
+    code = request.form.get('code').strip()
+
+    if company_id not in (None, ''):
+        update_code(company_id, code)
+        log_operation(session['user_id'], common.OPERATION_LOG_CODE_MODIFY_UPDATE, company_id)
+    return redirect(url_for('main.code_modify'))
+
+
+@main.route('/guide_video')
+@login_required
+def guide_video():  # put application's code here
+    # 构建面包屑路径
+    breadcrumbs = [("指导视频列表", url_for('main.guide_video')), ]
+
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    video_name_search = request.args.get('video_name_search')
+    result = get_vguide_video(video_name_search)
+
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 100, type=int)
+    paginated_data, total_records, total_pages = paginate(result, page, per_page)
+
+    return render_template('guide_video.html', active_menu='guide_video', results=paginated_data, permissions=permissions_list, breadcrumbs=breadcrumbs, current_user_id=current_user_id, page=page,
+                           total_pages=total_pages, per_page=per_page)
+
+
+# 添加视频
+@main.route('/add_guide_video', methods=['GET', 'POST'])
+@login_required
+def add_guide_video():
+    # 构建面包屑路径
+    breadcrumbs = [("指导视频列表", url_for('main.guide_video')), ("添加视频", url_for('main.add_guide_video')), ]
+
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if request.method == 'POST':
+        video_name = request.form['video_name'].strip()
+        video_address = request.form['video_address']
+        remark = request.form['remark']
+        type = request.form['type']
+
+        result_id = add_new_guide_video(video_name, video_address, remark, type)
+
+        log_operation(session['user_id'], common.OPERATION_LOG_VIP_REFUND_ADD, result_id)
+        return redirect(url_for('main.guide_video'))
+
+    return render_template('guide_video_add.html', active_menu='guide_video', breadcrumbs=breadcrumbs, permissions=permissions_list)
+
+
+@main.route('/do_guide_video/<int:id>', methods=['GET', 'POST'])
+@login_required
+def do_guide_video(id):
+    # 构建面包屑路径
+    breadcrumbs = [("指导视频列表", url_for('main.guide_video')), ("编辑视频", url_for('main.do_guide_video', id=id)), ]
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    result = get_guide_video(id)
+
+    if request.method == 'POST':
+        video_name = request.form.get('video_name')
+        video_address = request.form.get('video_address')
+        remark = request.form.get('remark')
+        type = request.form.get('type')
+
+        updata_guide_video(id, video_name, video_address, remark, type)
+
+        # 成功更新后重定向到API列表页面
+        return redirect(url_for('main.guide_video'))
+
+    return render_template('guide_video_do.html', active_menu='guide_video', breadcrumbs=breadcrumbs, permissions=permissions_list, result=result)
+
+
+# 综合导出
+@main.route('/compre_export')
+@login_required
+def compre_export():  # put application's code here
+    # 构建面包屑路径
+    breadcrumbs = [("综合导出", url_for('main.compre_export')), ]
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    results = get_compre_export()
+    # if company_id not in (None,"") or code not in (None,""):
+    #     results = get_code_modify_search(company_id,code)
+    return render_template('compre_export_list.html', active_menu='compre_export', breadcrumbs=breadcrumbs, permissions=permissions_list, results=results)
+
+
+@main.route('/export/<int:id>')
+@login_required
+def export(id):
+    # 构建面包屑路径
+    breadcrumbs = [("综合导出", url_for('main.compre_export')), ]
+
+    # 获取当前用户 ID
+    current_user_id = session.get('user_id')
+
+    # 检查用户权限
+    permissions_list = has_permission_show(current_user_id)
+    if not permissions_list:
+        flash('您没有权限进行此操作', 'danger')
+        return redirect(url_for('main.index'))
+
+    # 根据 id 参数调用不同的导出函数
+    if id == 1:
+        return perio_export()  # 直接返回 perio_export() 的响应对象
+
+    # 如果 id 不匹配，返回错误或重定向到其他页面
+    flash('无效的导出类型', 'warning')
+    return redirect(url_for('main.compre_export'))
+
+# 客户运营人员管理
+@main.route('/operating_sub_company')
+@login_required
+def operating_sub_company():  # put application's code here
+    # 构建面包屑路径
+    breadcrumbs = [("客户运营人员管理", url_for('main.operating_sub_company')), ]
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    phone_code = request.args.get('phone_code')
+    results = get_operating_sub(phone_code)
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', PAGE_RECORD_NUM, type=int)
+    paginated_data, total_records, total_pages = paginate(results, page, per_page)
+    start_page = max(2, page - 3)
+    end_page = min(page + 4, total_pages - 1)
+
+
+    return render_template('operating_sub_company_list.html', active_menu='operating_sub_company', results=paginated_data, permissions=permissions_list, breadcrumbs=breadcrumbs,page=page,
+                          total_pages=total_pages, per_page=per_page, start_page=start_page,end_page=end_page)
+
+# 新建客户运营
+@main.route('/add_operating_sub_company', methods=['GET', 'POST'])
+@login_required
+def add_operating_sub_company():
+
+    # 构建面包屑路径
+    breadcrumbs = [("客户运营人员管理", url_for('main.operating_sub_company')), ("添加运营人员", url_for('main.operating_sub_company')), ]
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    # updata_operating_sub()
+
+    if request.method == 'POST':
+        phone = request.form.get('phone')
+        name = request.form.get('name')
+
+        result_id = add_operating_sub(phone, name)
+        if result_id == 1:
+            return jsonify(success=False, message="该手机号码已存在，请务重复添加")
+        else:
+            return jsonify(success=True, message="")
+
+        log_operation(session['user_id'], common.OPERATION_LOG_OPERATING_SUB_COMPANY_ADD, result_id)
+        return redirect(url_for('main.operating_sub_company'))
+
+    return render_template('operating_sub_company_add.html', active_menu='operating_sub_company', breadcrumbs=breadcrumbs, permissions=permissions_list)
+
+#编辑客户运营人员
+#优惠编辑
+@main.route('/edit_operating_sub_company/<int:id>', methods=['GET', 'POST'])
+@login_required
+def edit_operating_sub_company(id):
+    resultid = get_operating_sub_id(id)
+    # 构建面包屑路径
+    breadcrumbs = [("客户运营人员管理", url_for('main.operating_sub_company')), ("编辑运营人员", url_for('main.operating_sub_company')), ]
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    if request.method == 'POST':
+        # phone = request.form.get('phone')
+        # name = request.form.get('name')
+
+        phone = request.form.get('phone')
+        name = request.form.get('name')
+        result=edit_operating_sub(phone,name,id)
+        if result == 1:
+            return jsonify(success=False, message="该手机号码已存在，请务重复添加")
+        else:
+            return jsonify(success=True, message="")
+        log_operation(session['user_id'], common.OPERATION_LOG_OPERATING_SUB_COMPANY_EDIT, id)
+
+        return redirect(url_for('main.operating_sub_company'))
+
+    return render_template('operating_sub_company_edit.html', active_menu='operating_sub_company', breadcrumbs=breadcrumbs, resultid=resultid, permissions=permissions_list)
+
+
+
+#删除客户运营人员
+@main.route('/del_soperating_sub_company/<int:id>', methods=['GET', 'POST'])
+@login_required
+def del_soperating_sub_company(id):
+    del_operating_sub(id)
+    log_operation(session['user_id'], common.OPERATION_LOG_OPERATING_SUB_COMPANY_DEL, id)
+
+    return redirect(url_for('main.operating_sub_company'))
+
+
+# 初始化订单-账号列表
+@main.route('/initial_order')
+@login_required
+def initial_order():  # put application's code here
+
+    results = ""
+    breadcrumbs = [("初始化订单", url_for('main.initial_order')), ]
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    company_id = request.args.get('company_id')
+    status_filter = request.args.get('channel')
+    if company_id:
+        results = get_account_id(company_id,status_filter)
+    log_results=get_initial_order_log()
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', PAGE_RECORD_NUM, type=int)
+    paginated_data, total_records, total_pages = paginate(log_results, page, per_page)
+    start_page = max(2, page - 3)
+    end_page = min(page + 4, total_pages - 1)
+
+
+    return render_template('initial_order_list.html', active_menu='initial_order', log_results=paginated_data,results=results,permissions=permissions_list, status_filter=status_filter,breadcrumbs=breadcrumbs,page=page,
+                          total_pages=total_pages, per_page=per_page, start_page=start_page,end_page=end_page)
+
+
+#初始化订单-初始化
+@main.route('/do_initial_order', methods=['GET'])
+def do_initial_order():
+    try:
+        # 从查询字符串中获取 id 参数
+        id = request.args.get('id')
+        companyid = request.args.get('company_id')
+        force = request.args.get('force')
+        if not id or not id.isdigit():  # 确保 id 是数字
+            return "无效的 ID 参数", 400
+        if force=="1":
+            full_url = f"{initial_order_gnoreHistory_url}{id}"
+            custom_description = "执行强制初始化订单操作：" + "公司id:" + companyid + ", 账号id:" + id
+        else:
+            full_url = f"{initial_order_url}{id}"
+            custom_description = "执行初始化订单操作：" + "公司id:" + companyid + ", 账号id:" + id
+
+
+        log_operation(session['user_id'], common.OPERATION_LOG_INITIAL_ORDER_SEND, id, custom_desc=custom_description)
+
+        # 返回重定向响应
+        return redirect(full_url)
+
+    except Exception as e:
+        return f"发生错误: {str(e)}", 500
+
+
+#子商户
+@main.route('/sub_merchant_list')
+@login_required
+def sub_merchant_list():  # put application's code here
+    # 构建面包屑路径
+    breadcrumbs = [("子商户列表", url_for('main.sub_merchant_list')), ]
+    current_user_id = session.get('user_id')
+    permissions_list = has_permission_show(current_user_id)
+    company_id = request.args.get('company_id')
+    channel = request.args.get('channel')
+
+    # code = request.args.get('code')
+    # if partner in ('', None) and code in ('', None):
+    #     results = get_coop_ex()
+    # else:
+    results, total_count = get_sub_merchant_list(company_id, channel)
+
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', PAGE_RECORD_NUM, type=int)
+    paginated_data, total_records, total_pages = paginate(results, page, per_page)
+    start_page = max(2, page - 3)
+    end_page = min(page + 4, total_pages - 1)
+    return render_template('pay_sub_merchant.html', active_menu='sub_merchant', results=paginated_data, permissions=permissions_list, breadcrumbs=breadcrumbs, current_user_id=current_user_id, page=page,
+                           total_pages=total_pages, per_page=per_page, start_page=start_page, end_page=end_page, status_filter={'channel': channel}, total_count=total_count)
+
+
+#费用计算
+# @main.route('/data_changes_toys')
+# @login_required
+# def data_changes_toys():  # put application's code here
+#     # 构建面包屑路径
+#     breadcrumbs = [("数据变动工具", url_for('main.data_changes_toys')), ]
+#
+#     current_user_id = session.get('user_id')
+#     permissions_list = has_permission_show(current_user_id)
+#     company_id = request.args.get('company_id')
+#     room_num = request.args.get('room_num')
+#     action = request.form.get('action')
+#     if action == 'first':
+#         result = get_data_changes_result(company_id,room_num)
+#
+#     page = request.args.get('page', 1, type=int)
+#     per_page = request.args.get('per_page', 100, type=int)
+#     paginated_data, total_records, total_pages = paginate(result, page, per_page)
+#
+#     return render_template('data_changes_toys.html', active_menu='data_changes_toys', results=paginated_data, permissions=permissions_list, breadcrumbs=breadcrumbs, current_user_id=current_user_id, page=page,
+#                            total_pages=total_pages, per_page=per_page)
+
+
+
+
+
+# @main.route('/get_wx_complaint', methods=['GET'])
+# @login_required
+# def get_wx_complaint():  # put application's code here
+#     # 构建面包屑路径
+#     breadcrumbs = [
+#         ("添加邀请码", url_for('main.code_modify')),
+#     ]
+#     results=""
+#     current_user_id = session.get('user_id')
+#     permissions_list = has_permission_show(current_user_id)
+#     code = request.args.get('code')
+#     company_id = request.args.get('company_id')
+#     begin_date=request.args.get('')
+#     end_date=request.args.get('')
+#     end_date = request.args.get('')
+#     complainted_mchid=request.args.get('')
+#     nonce_str = generate_nonce_str()
+#     private_key=load_private_key(current_app.config['private_key_path'])
+#     timestamp = str(int(time.time()))
+#
+#     query_params=current_app.config['url']+'?limit=5&offset=10&begin_date='+begin_date+'&end_date='+end_date+'&'+complainted_mchid
+#     signature = generate_signature(complainted_mchid, current_app.config['api_v3_key'], "GET", query_params, timestamp, nonce_str)
+#
+#     # 构建Authorization头部
+#     authorization = f'WECHATPAY2-SHA256-RSA2048 mchid="{complainted_mchid}",nonce_str="{nonce_str}",timestamp="{timestamp}",signature="{signature}"'
+#
+#     sendurl(authorization, current_app.config['url'], query_params)
+#
+#
+#     page = request.args.get('page', 1, type=int)
+#     per_page = request.args.get('per_page', PAGE_RECORD_NUM, type=int)
+#     paginated_data, total_records, total_pages = paginate(results, page, per_page)
+#
+#     return render_template('code_modify_list.html', active_menu='code_modify', results=paginated_data,permissions=permissions_list,
+#                            breadcrumbs=breadcrumbs,
+#                            current_user_id=current_user_id, page=page,
+#                            total_pages=total_pages, per_page=per_page)
+
+
+# # 特殊申请-账号注销
+# @main.route('/auto_deploy')
+# @login_required
+# def auto_deploy():  # put application's code here
+#     # 构建面包屑路径
+#     breadcrumbs = [
+#         ("添加邀请码", url_for('main.auto_deploy')),
+#     ]
+#     current_user_id = session.get('user_id')
+#     permissions_list = has_permission_show(current_user_id)
+#     print(permissions_list)
+#
+#     deploy()
+#
+#     # page = request.args.get('page', 1, type=int)
+#     # per_page = request.args.get('per_page', PAGE_RECORD_NUM, type=int)
+#     # paginated_data, total_records, total_pages = paginate(results, page, per_page)
+#
+#     return render_template('auto_deploy.html', active_menu='auto_deploy',
+#                            # results=paginated_data,
+#                            # permissions=permissions_list,
+#                            # breadcrumbs=breadcrumbs,
+#                            # current_user_id=current_user_id, page=page,
+#                            # total_pages=total_pages, per_page=per_page
+#                            )
+
+
+# 生成分页
+def _generate_pagination(current_page, total_pages, delta=2):
+    pages = []
+    for page in range(1, total_pages + 1):
+        # 总是显示第一页和最后一页
+        if page == 1 or page == total_pages:
+            pages.append(page)
+        # 显示当前页码前后的页码
+        elif current_page - delta <= page <= current_page + delta:
+            pages.append(page)
+        # 在其他情况下，添加省略号
+        elif pages[-1] != '...':
+            pages.append('...')
+
+    return pages

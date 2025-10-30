@@ -1,0 +1,53 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+    <div class="container">
+        <form action="{{ url_for('main.do_guide_video', id=result.id) }}" method="post">
+
+            <div class="row mb-3">
+                <label for="type" class="col-sm-1 col-form-label">类型：<span class="text-danger">*</span></label>
+                <div class="col-sm-5 d-flex align-items-center">
+                    <select class="form-select me-2 type" name="type" id="type">
+                        <option value="1" {% if result.type == '1' %}selected{% endif %}>对内</option>
+                        <option value="2" {% if result.type == '2' %}selected{% endif %}>对外</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label for="phone" class="col-sm-1 col-form-label">视频名称：</label>
+                <div class="col-sm-5">
+                    <input type="text" class="form-control" id="video_name" value="{{ result.video_name|default('', true) }}" name="video_name">
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label for="phone" class="col-sm-1 col-form-label">视频地址：</label>
+                <div class="col-sm-5">
+                    <input type="text" class="form-control" id="video_address" value="{{ result.video_address|default('', true) }}" name="video_address">
+                </div>
+            </div>
+
+
+            <div class="row mb-3">
+                <label for="todo_remark" class="col-1 col-form-label">备注:</label>
+                <div class="col-5">
+                    <textarea class="form-control" id="remark" name="remark" style="height: 150px">{{ result.remark|default('', true) }}</textarea>
+                </div>
+            </div>
+
+
+            <div class="row">
+                <div class="col-12">
+                    <button type="submit" name="action" value="completed" class="btn btn-success me-2" id="communicated-button">提交处理</button>
+                    <a href="{{ url_for('main.guide_video') }}" class="btn btn-secondary">取消</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <script>
+
+    </script>
+
+{% endblock %}

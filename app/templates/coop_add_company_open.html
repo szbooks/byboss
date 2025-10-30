@@ -1,0 +1,35 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+    <div class="container">
+        <form action="{{ url_for('main.add_company_coop_ex_open', id=resultid.id) }}" method="post" id="coopForm">
+            <!-- 合作伙伴 -->
+            <div class="row mb-3">
+                <div class="col-1">合作伙伴:</div>
+                <div class="col-5">{{ resultid.name}}</div>
+            </div>
+            <!-- 公司 -->
+            <div class="row mb-3">
+                <label for="add_company" class="col-sm-1 col-form-label">公司id：</label>
+                <div class="col-sm-5">
+                    <input type="number" class="form-control" id="add_company" name="add_company" placeholder="一次只输入一个公司id">
+                </div>
+            </div>
+{##}
+{#            <!-- 优惠策略 -->#}
+{#               <div class="row mb-3">#}
+{#                    <div class="col-1">优惠方案:</div>#}
+{#                    <div class="col-5">{{ resultid.discounts|default('', true) }}</div>#}
+{#                </div>#}
+
+            <div class="row">
+                <div class="col-sm-10 offset-sm-1">
+                    <button type="submit" class="btn btn-primary me-2">提交</button>
+                    <a href="{{ url_for('main.coop_ex_open') }}" class="btn btn-secondary">取消</a>
+                </div>
+            </div>
+        </form>
+
+
+    </div>
+{% endblock %}S

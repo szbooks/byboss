@@ -1,0 +1,355 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+    <div class="container">
+        <form action="{{ url_for('main.add_vip_refund') }}" method="post" id="transferForm" enctype="multipart/form-data">
+            <!-- 公司ID -->
+            <div class="row mb-3">
+                <label for="company_id" class="col-sm-1 col-form-label">公司ID：<span class="text-danger">*</span></label>
+                <div class="col-sm-5 d-flex align-items-center">
+                    <input type="text" class="form-control" id="company_id" name="company_id" required>
+                </div>
+
+            </div>
+
+            <!-- 联系电话 -->
+            <div class="row mb-3">
+                <label for="phone" class="col-sm-1 col-form-label">联系电话：<span class="text-danger">*</span></label>
+                <div class="col-sm-5">
+                    <input type="tel" class="form-control" id="phone" name="phone" pattern="(\+?\d[- .]*){7,13}" required>
+                </div>
+            </div>
+            <!-- 退款金额 -->
+            <div class="row mb-3">
+                <label for="company_id" class="col-sm-1 col-form-label">退款金额：</label>
+                <div class="col-sm-5 d-flex align-items-center">
+                    <input type="text" class="form-control" id="price" name="price">
+                </div>
+            </div>
+
+            <!-- 新增的支付类型单选按钮组 -->
+            <div class="row mb-3">
+                <label class="col-sm-1 col-form-label">退费类型：<span class="text-danger">*</span></label>
+                <div class="col-sm-5">
+                    <div class="btn-group" role="group">
+                        <!-- VIP费用选项 -->
+                        <input type="radio" class="btn-check" name="payment_type" id="payment_vip" value="vip" required>
+                        <label class="btn btn-outline-secondary payment-type-btn" for="payment_vip">VIP费用</label>
+
+                        <!-- 短信费用选项 -->
+                        <input type="radio" class="btn-check" name="payment_type" id="payment_sms" value="sms">
+                        <label class="btn btn-outline-secondary payment-type-btn" for="payment_sms">短信费用</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 申请事项 -->
+            <div class="row mb-3">
+                <label for="content" class="col-sm-1 col-form-label">申请事项：</label>
+                <div class="col-sm-5">
+                    <textarea class="form-control" id="content" name="content" style="height: 150px"></textarea>
+                </div>
+            </div>
+
+            <!-- 图片上传区域 -->
+            <!-- 证件上传 -->
+            <div class="row mb-3">
+                <label class="col-sm-1 col-form-label">支付凭证：</label>
+                <div class="col-sm-5">
+                    <div class="image-upload-container" style="width: 100%;">  <!-- 添加宽度100% -->
+                        <div class="image-upload-box" style="width: 100%;">  <!-- 添加宽度100% -->
+                            <input type="file" id="idBackInput" name="id_back_image" accept="image/*" style="display:none;">
+                            <div class="preview-wrapper" id="idBackWrapper" style="width: 100%;">  <!-- 添加宽度100% -->
+                                <div class="loading-spinner"></div>
+                                <img id="idBackPreview" src="#" alt="身份证反面" style="max-width: 100%;">  <!-- 添加max-width:100% -->
+                                <span class="delete-btn">×</span>
+                            </div>
+                            <div id="idBackPlaceholder" class="upload-placeholder" style="width: 100%;">  <!-- 添加宽度100% -->
+                                <i class="bi bi-card-image fs-5 text-muted"></i>
+                                <p class="mb-0 small text-muted">上传支付凭证</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {#             <!-- 图片 -->#}
+            {#             <div class="row mb-3">#}
+            {#                <label for="file" class="col-sm-1 col-form-label">上传图片：</label>#}
+            {#                <div class="col-sm-5">#}
+            {#                    <input type="file" name="images" multiple>#}
+            {#                </div>#}
+            {#            </div>#}
+            {#            <h2>已上传的图片</h2>#}
+            {#        <div>#}
+            {#            {% for image in images %}#}
+            {#                <img src="{{ url_for('main.get_image', image_id=image.id) }}" alt="Uploaded Image">#}
+            {#            {% endfor %}#}
+            {#        </div>#}
+
+
+            <div class="row">
+                <div class="col-sm-10 offset-sm-1">
+                    <button type="submit" class="btn btn-primary me-2">提交</button>
+                    <a href="{{ url_for('main.vip_refund') }}" class="btn btn-secondary">取消</a>
+                </div>
+            </div>
+        </form>
+
+    </div>
+
+    <style>
+        /* 图片上传容器 */
+        .image-upload-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+
+        /* 上传框样式 */
+        .image-upload-box {
+            height: 150px;
+            width: 210px;
+            position: relative;
+            cursor: pointer;
+            border: 1px dashed #ced4da;
+            border-radius: 4px;
+            background: #f8f9fa;
+        }
+
+        /* 预览容器 */
+        .preview-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            background: #f8f9fa;
+        }
+
+        .preview-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            padding: 5px;
+        }
+
+        /* 加载指示器 */
+        .loading-spinner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top-color: #007bff;
+            animation: spin 1s linear infinite;
+            display: none;
+            z-index: 5;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: translate(-50%, -50%) rotate(0deg);
+            }
+            100% {
+                transform: translate(-50%, -50%) rotate(360deg);
+            }
+        }
+
+        /* 删除按钮 */
+        .delete-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 22px;
+            height: 22px;
+            background: rgba(255, 0, 0, 0.7);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+            z-index: 10;
+            border: 1px solid white;
+        }
+
+        /* 占位符样式 */
+        .upload-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+        }
+
+        /* 必填字段标记 */
+        .text-danger {
+            color: #dc3545;
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            .image-upload-box {
+                width: 100%;
+            }
+        }
+
+        /* 初始状态 - 浅灰色 */
+        .payment-type-btn {
+            background-color: #f8f9fa;
+            border-color: #dee2e6;
+            color: #6c757d;
+        }
+
+        /* 选中状态 - 蓝色 */
+        .btn-check:checked + .payment-type-btn {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+            color: white;
+        }
+
+        /* 悬停效果 */
+        .payment-type-btn:hover {
+            background-color: #e9ecef;
+            color: #495057;
+        }
+
+    </style>
+
+
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const imageUpload = {
+                inputId: 'idBackInput',
+                wrapperId: 'idBackWrapper',
+                placeholderId: 'idBackPlaceholder',
+                previewId: 'idBackPreview'
+            };
+
+            function initImageUpload(config) {
+                const input = document.getElementById(config.inputId);
+                const wrapper = document.getElementById(config.wrapperId);
+                const placeholder = document.getElementById(config.placeholderId);
+                const preview = document.getElementById(config.previewId);
+                const deleteBtn = wrapper.querySelector('.delete-btn');
+                const spinner = wrapper.querySelector('.loading-spinner');
+
+                // 点击上传框触发文件选择
+                placeholder.closest('.image-upload-box').addEventListener('click', function (e) {
+                    if (e.target !== deleteBtn) {
+                        input.click();
+                    }
+                });
+
+                // 删除图片
+                deleteBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    resetImageInput(input, wrapper, placeholder, preview);
+                });
+
+                // 文件选择变化事件
+                input.addEventListener('change', function () {
+                    if (this.files && this.files[0]) {
+                        const reader = new FileReader();
+
+                        // 显示加载状态
+                        placeholder.style.display = 'none';
+                        wrapper.style.display = 'block';
+                        spinner.style.display = 'block';
+
+                        reader.onload = function (e) {
+                            preview.src = e.target.result;
+
+                            // 显示预览
+                            preview.onload = function () {
+                                spinner.style.display = 'none';
+                                input.classList.remove('is-invalid');
+                            };
+                        };
+                        reader.readAsDataURL(this.files[0]);
+                    }
+                });
+            }
+
+            function resetImageInput(input, wrapper, placeholder, preview) {
+                input.value = '';
+                preview.src = '#';
+                wrapper.style.display = 'none';
+                placeholder.style.display = 'flex';
+                input.classList.add('is-invalid');
+            }
+
+            // 表单提交处理
+            document.getElementById('transferForm').addEventListener('submit', function (e) {
+                e.preventDefault(); // 阻止默认表单提交
+
+                const submitBtn = this.querySelector('button[type="submit"]');
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 提交中...';
+
+                // 创建FormData对象
+                const formData = new FormData(this);
+
+                // 调试：检查FormData内容
+                {#for (let [key, value] of formData.entries()) {#}
+                {#    console.log(key, value);#}
+
+
+                // 使用Fetch API提交表单
+                fetch(this.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // 提交成功后的处理
+                            window.location.href = data.redirect || '/success-page';
+                        } else {
+                            // 提交失败的处理
+                            alert(data.message || '提交失败');
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = '保存';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('提交错误:', error);
+                        alert('提交过程中发生错误');
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '保存';
+                    });
+            });
+
+            // 初始化图片上传
+            initImageUpload(imageUpload);
+        });
+    </script>
+
+    <script>
+        $(document).ready(function () {
+            // 为支付类型按钮添加点击效果
+            $('.payment-type-btn').click(function () {
+                // 移除所有按钮的active类
+                $('.payment-type-btn').removeClass('active');
+                // 为当前点击的按钮添加active类
+                $(this).addClass('active');
+            });
+        });
+    </script>
+
+
+{% endblock %}

@@ -1,0 +1,176 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+    {% set query_params = {
+        "search_date": request.args.get('search_date', 'today')
+    } %}
+    <div class="content-area">
+        <!-- 顶部操作栏 - 平铺式时间筛选 -->
+        <div class="d-flex align-items-center flex-wrap mb-3">
+            <form id="auto-submit-form" action="{{ url_for('main.stat_presales_claim') }}" method="get" class="d-flex align-items-center mb-2 flex-grow-0">
+                <!-- 保留其他查询参数 -->
+                <input type="hidden" name="search_date" value="{{ request.args.get('search_date', 'today') }}">
+
+                <div class="d-flex align-items-center me-3">
+                    <span class="me-2">时间范围：</span>
+                    <div class="btn-group btn-group-sm time-filter-group" role="group">
+                        <!-- 隐藏字段存储实际值 -->
+                        <input type="hidden" name="search_date"
+                               value="{{ request.args.get('search_date', 'today') }}"
+                               id="search_date_input">
+
+                        <!-- 平铺式按钮 -->
+                        <button type="button" class="btn btn-outline-primary time-filter-btn {% if not request.args.get('search_date') %}active{% endif %}"
+                                data-value="">全部</button>
+                        <button type="button" class="btn btn-outline-primary time-filter-btn {% if request.args.get('search_date', 'today') == 'today' %}active{% endif %}"
+                                data-value="today">今天</button>
+                        <button type="button" class="btn btn-outline-primary time-filter-btn {% if request.args.get('search_date') == 'week' %}active{% endif %}"
+                                data-value="week">1周内</button>
+                        <button type="button" class="btn btn-outline-primary time-filter-btn {% if request.args.get('search_date') == 'month' %}active{% endif %}"
+                                data-value="month">30天内</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- 统计汇总信息 -->
+        {% if results and results[0] %}
+        <div class="alert alert-info mb-3">
+            总计: {{ results[0].total_all_records }} 条记录 |
+            未分配: {{ results[0].total_null_presales }} 条
+        </div>
+        {% endif %}
+
+        <!-- 表格部分 -->
+        <table class="table table-bordered table-light table-hover">
+            <thead>
+                <tr>
+                    <th class="text-center align-middle">姓名</th>
+                    <th class="text-center align-middle">入表日期</th>
+                    <th class="text-center align-middle">认领总数</th>
+                    <th class="text-center align-middle">初步沟通</th>
+                    <th class="text-center align-middle">直连</th>
+                    <th class="text-center align-middle">转售后</th>
+                    <th class="text-center align-middle">重点跟踪</th>
+                    <th class="text-center align-middle">复盘</th>
+                    <th class="text-center align-middle">放弃</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in results %}
+                <tr>
+                    <td class="text-center align-middle">{{ row.name }}</td>
+                    {% if row.show_date %}
+                        <td class="text-center align-middle" rowspan="{{ row.rowspan }}">{{ row.create_date }}</td>
+                    {% endif %}
+                    <td class="text-center align-middle">{{ row.total }}</td>
+                    <td class="text-center align-middle">{{ row.state1 }}</td>
+                    <td class="text-center align-middle">{{ row.state3 }}</td>
+                    <td class="text-center align-middle">{{ row.state4 }}</td>
+                    <td class="text-center align-middle">{{ row.state7 }}</td>
+                    <td class="text-center align-middle">{{ row.state5 }}</td>
+                    <td class="text-center align-middle">{{ row.state6 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- 分页部分保持不变 -->
+        <nav aria-label="Page navigation" class="d-flex justify-content-end pagination-container">
+            <ul class="pagination pagination-sm">
+                <!-- 上一页 -->
+                <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('main.presales_progress', page=page-1,**query_params) }}">上一页</a>
+                </li>
+
+                <!-- 首页 -->
+                <li class="page-item {% if page == 1 %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('main.presales_progress', page=1,**query_params) }}">1</a>
+                </li>
+
+                <!-- 省略号（如果当前页不在前几页） -->
+                {% if start_page > 2 %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
+
+                <!-- 动态页码范围 -->
+                {% for num in range(start_page, end_page + 1) %}
+                    <li class="page-item {% if num == page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('main.presales_progress', page=num,**query_params) }}">{{ num }}</a>
+                    </li>
+                {% endfor %}
+
+                <!-- 省略号（如果当前页不在后几页） -->
+                {% if end_page < total_pages - 1 %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
+
+                <!-- 末页 -->
+                {% if total_pages > 1 %}
+                    <li class="page-item {% if page == total_pages %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('main.presales_progress', page=total_pages,**query_params) }}">{{ total_pages }}</a>
+                    </li>
+                {% endif %}
+
+                <!-- 下一页 -->
+                <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('main.presales_progress', page=page+1,**query_params) }}">下一页</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+
+    <style>
+    {#.time-filter-group {#}
+    {#    flex-wrap: wrap;#}
+    {#    gap: 5px;#}
+    {#}#}
+    {#.time-filter-btn {#}
+    {#    min-width: 70px;#}
+    {#    border-radius: 4px !important;#}
+    {#    transition: all 0.3s;#}
+    {#}#}
+    {#.time-filter-btn.active {#}
+    {#    background-color: #0d6efd;#}
+    {#    color: white;#}
+    {#}#}
+    {#.time-filter-btn:hover {#}
+    {#    transform: translateY(-2px);#}
+    {#}#}
+    </style>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('auto-submit-form');
+        const hiddenInput = document.getElementById('search_date_input');
+        const buttons = document.querySelectorAll('.time-filter-btn');
+
+        // 按钮点击处理
+        buttons.forEach(btn => {
+            btn.addEventListener('click', function() {
+                // 更新UI状态
+                buttons.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+
+                // 更新隐藏字段值
+                hiddenInput.value = this.dataset.value || '';
+
+                // 自动提交表单（添加防抖）
+                clearTimeout(form.debounce);
+                form.debounce = setTimeout(() => {
+                    form.submit();
+                }, 150); // 150ms防抖延迟
+            });
+        });
+
+        // 初始化默认值（确保至少有一个按钮是active状态）
+        if (!document.querySelector('.time-filter-btn.active')) {
+            document.querySelector('[data-value="today"]').classList.add('active');
+        }
+    });
+    </script>
+{% endblock %}

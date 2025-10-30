@@ -1,0 +1,158 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+
+
+        <!-- 处理表单 -->
+        <form action="{{ url_for('main.edit_receipt', receipt_id=receipt.id) }}" method="post">
+        <input type="hidden" name="status" value="{{ request.args.get('status', '') }}">
+             <div class="row mb-3">
+                <label for="company_id" class="col-sm-1 col-form-label">公司ID：<span class="text-danger">*</span></label>
+                <div class="col-sm-5 d-flex align-items-center">
+                    <input type="text" class="form-control" id="company_id" name="company_id" value="{{ receipt.company_id }}" required>
+                    <button type="button" class="btn btn-outline-primary ms-2" id="searchCompanyBtn" style="width: 60px; height: 35px;">查询</button>
+                </div>
+                <div id="company_id_feedback" class="form-text text-danger" style="margin-left: 190px;"></div>
+            </div>
+
+
+            <!-- 开票金额 -->
+            <div class="row mb-3">
+                <label for="price" class="col-sm-1 col-form-label">开票金额：</label>
+                <div class="col-sm-5">
+                    <input type="text" class="form-control" id="price" value="{{ receipt.price|default('', true) }}" name="price">
+                </div>
+            </div>
+
+             <!-- 发票头 -->
+            <div class="row mb-3">
+                <label for="price" class="col-sm-1 col-form-label">开票公司：</label>
+                <div class="col-sm-5">
+                    <input type="text" class="form-control" id="invoice_head" value="{{ receipt.invoice_head|default('', true) }}" name="invoice_head">
+                </div>
+            </div>
+
+            <!-- 税号 -->
+            <div class="row mb-3">
+                <label for="price" class="col-sm-1 col-form-label">税号：</label>
+                <div class="col-sm-5">
+                    <input type="text" class="form-control" id="tax_id" value="{{ receipt.tax_id|default('', true) }}" name="tax_id">
+                </div>
+            </div>
+
+            <!-- 开户行 -->
+            <div class="row mb-3">
+                <label for="price" class="col-sm-1 col-form-label">开户行：</label>
+                <div class="col-sm-5">
+                    <input type="text" class="form-control" id="khh" value="{{ receipt.khh|default('', true) }}" name="khh">
+                </div>
+            </div>
+
+            <!-- 银行账号 -->
+            <div class="row mb-3">
+                <label for="price" class="col-sm-1 col-form-label">银行账号：</label>
+                <div class="col-sm-5">
+                    <input type="text" class="form-control" id="bank_account" value="{{ receipt.bank_account|default('', true) }}" name="bank_account">
+                </div>
+            </div>
+
+             <!-- 地址 -->
+            <div class="row mb-3">
+                <label for="price" class="col-sm-1 col-form-label">地址：</label>
+                <div class="col-sm-5">
+                    <input type="text" class="form-control" id="addr" value="{{ receipt.addr|default('', true) }}" name="addr">
+                </div>
+            </div>
+
+            <!-- 联系电话 -->
+            <div class="row mb-3">
+                <label for="phone" class="col-sm-1 col-form-label">联系电话：</label>
+                <div class="col-sm-5">
+                    <input type="tel" class="form-control" id="phone" name="phone" value="{{ receipt.phone|default('', true) }}" pattern="(\+?\d[- .]*){7,13}">
+                </div>
+            </div>
+
+            <!-- 备注 -->
+            <div class="row mb-3">
+                <label for="remark" class="col-sm-1 col-form-label">基本信息：</label>
+                <div class="col-sm-5">
+                    <textarea class="form-control" id="remark" name="remark" style="height: 150px">{{ receipt.remark|default('', true) }}</textarea>
+                </div>
+            </div>
+
+
+            <div class="row">
+                <div class="col-12">
+                    <button type="submit"  class="btn btn-success me-2" id="complete-button">保存</button>
+                     <a href="{{ url_for('main.receipts') }}" class="btn btn-secondary">取消</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var rejectButton = document.getElementById('reject-button');
+            var completeButton = document.getElementById('complete-button');
+            var todoRemark = document.getElementById('todo_remark');
+
+            rejectButton.addEventListener('click', function() {
+                todoRemark.setAttribute('required', '');
+            });
+
+            completeButton.addEventListener('click', function() {
+                todoRemark.removeAttribute('required');
+            });
+        });
+    </script>
+      <script>
+            $(document).ready(function () {
+                // 监听查询按钮的点击事件
+                $('#searchCompanyBtn').on('click', function () {
+                    var companyId = $('#company_id').val();
+
+                    // 清除之前的反馈信息
+                    $('#company_id_feedback').empty();
+
+                    // 发送 AJAX 请求来查询公司 ID
+                    $.ajax({
+                        url: '/old_search_company',
+                        method: 'GET',
+                        data: {
+                            'company_id': companyId
+                        },
+                        success: function (response) {
+                            if (response && response.found) {
+                                // 如果找到了数据，清除反馈信息
+                                $('#company_id_feedback').empty();
+                                {#$('#company_id_feedback').text(data.company_id);#}
+
+                                // 更新表单字段
+                                updateFormFields(response.data);
+                            } else {
+                                // 如果未找到数据，在输入框下方显示提示信息
+                                $('#company_id_feedback').empty();
+                                $('#company_id_feedback').text('未找到数据');
+                            }
+                        },
+                        error: function (error) {
+                            console.error('Failed to search company:', error);
+                            $('#company_id_feedback').text('查询失败，请稍后再试');
+                        }
+                    });
+                });
+
+                // 更新表单字段的函数
+                function updateFormFields(data) {
+                    $('#company_id_feedback').text("已查找到公司:"+data.company_id+" 的数据");
+                    $('#invoice_head').val(data.invoice_head);
+                    $('#tax_id').val(data.tax_id);
+                    $('#khh').val(data.khh);
+                    $('#bank_account').val(data.bank_account);
+                    $('#addr').val(data.addr);
+                    $('#remark').val(data.remark);  // 假设数据中包含 remark 字段
+                }
+            });
+        </script>
+
+{% endblock %}

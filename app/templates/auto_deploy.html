@@ -1,0 +1,54 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+    <div class="content-area">
+        <!-- 顶部操作栏 -->
+        <div class="d-flex align-items-center flex-wrap mb-3">
+            <!-- 操作按钮 -->
+            <a href="{{ url_for('main.auto_deploy') }}" class="btn btn-primary me-2 mb-2">点击部署</a>
+            <!-- 查询表单 -->
+        </div>
+        <table class="table table-striped table-bordered table-light table-hover">
+            <thead>
+            <tr>
+                <th>版本号</th>
+                <th>发布日期</th>
+
+
+            </tr>
+            </thead>
+            <tbody>
+            {% for receipt  in receipts %}
+                <tr>
+                    <td>
+
+
+                    </td>
+
+                    <td style="max-width: 150px;">
+
+                    </td>
+
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <!-- 底部分页控件 -->
+{#        <nav aria-label="Page navigation" class="d-flex justify-content-end pagination-container">#}
+{#            <ul class="pagination pagination-sm">#}
+{#                <li class="page-item {% if page <= 1 %}disabled{% endif %}">#}
+{#                    <a class="page-link" href="{{ url_for('main.receipts', page=page-1) }}">上一页</a>#}
+{#                </li>#}
+{#                {% for num in range(1, total_pages + 1) %}#}
+{#                    <li class="page-item {% if num == page %}active{% endif %}">#}
+{#                        <a class="page-link" href="{{ url_for('main.receipts', page=num) }}">{{ num }}</a>#}
+{#                    </li>#}
+{#                {% endfor %}#}
+{#                <li class="page-item {% if page >= total_pages %}disabled{% endif %}">#}
+{#                    <a class="page-link" href="{{ url_for('main.receipts', page=page+1) }}">下一页</a>#}
+{#                </li>#}
+{#            </ul>#}
+{#        </nav>#}
+{#    </div>#}
+
+{% endblock %}

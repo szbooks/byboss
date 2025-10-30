@@ -1,0 +1,16 @@
+label {
+    display: block;
+    font: 1rem 'Fira Sans',
+    sans-serif;
+}
+
+input,
+label {
+    margin: 0.4rem 0;
+}
+
+.fixed-width-btn {
+    width: 120px; /* Set your desired width */
+    height: 35px;
+}
+

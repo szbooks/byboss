@@ -1,0 +1,242 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/shop_owner_change/shop_owner_change_remark.css') }}">
+<div class="container">
+    <form action="{{ url_for('main.remark_shop_owner_change', id=record.id) }}" method="post" id="editForm" enctype="multipart/form-data">
+        <!-- 公司ID -->
+        <div class="row mb-3">
+            <label for="company_id" class="col-sm-2 col-form-label">公司ID：</label>
+            <div class="col-sm-4">
+                <input type="text" class="form-control" id="company_id" name="company_id" value="{{ record.company_id }}" readonly>
+            </div>
+        </div>
+
+        <!-- 新店主 -->
+        <div class="row mb-3">
+            <label for="new_owner" class="col-sm-2 col-form-label">新店主：</label>
+            <div class="col-sm-4">
+                <input type="text" class="form-control" id="new_owner" name="new_owner" value="{{ record.new_owner }}" readonly>
+            </div>
+        </div>
+
+        <!-- 证件上传 -->
+        <div class="row mb-3">
+            <label class="col-sm-2 col-form-label">证件上传：</label>
+            <div class="col-sm-8">
+                <div class="image-upload-container">
+                    <!-- 身份证正面 -->
+                    <div class="image-upload-box">
+                        <input type="hidden" name="existing_id_front" value="{{ record.card_front_image }}" />
+                        <div class="preview-wrapper"
+                            style="display: {{ 'block' if record.card_front_image else 'none' }}">
+                            <img
+                                src="{{
+                                    ('data:image/png;base64,' + record.card_front_image)
+                                    if record.card_front_image
+                                    else url_for('static', filename='images/default.jpg')
+                                }}"
+                                alt="身份证正面"
+                                class="img-thumbnail"
+                                title="点击可放大"
+{#                                style="max-width: 100%; height: auto;"#}
+                            />
+                        </div>
+                        <div class="upload-placeholder"
+                            style="display: {{ 'none' if record.card_front_image else 'block' }}">
+                            <i class="fas fa-cloud-upload-alt fa-2x"></i>
+                            <span>身份证正面</span>
+                        </div>
+                    </div>
+
+                    <!-- 身份证反面 -->
+                    <div class="image-upload-box">
+                        <input type="hidden" name="existing_id_back" value="{{ record.card_back_image }}" />
+                        <div class="preview-wrapper"
+                            style="display: {{ 'block' if record.card_back_image else 'none' }}">
+                            <img
+                                src="{{
+                                    ('data:image/png;base64,' + record.card_back_image)
+                                    if record.card_back_image
+                                    else url_for('static', filename='images/default.jpg')
+                                }}"
+                                alt="身份证反面"
+                                class="img-thumbnail"
+                                title="点击可放大"
+{#                                style="max-width: 100%; height: auto;"#}
+                            />
+                        </div>
+                        <div class="upload-placeholder"
+                            style="display: {{ 'none' if record.card_back_image else 'block' }}">
+                            <i class="fas fa-cloud-upload-alt fa-2x"></i>
+                            <span>身份证反面</span>
+                        </div>
+                    </div>
+
+                    <!-- 营业执照 -->
+                    <div class="image-upload-box">
+                        <input type="hidden" name="existing_license" value="{{ record.license_image_data }}" />
+                        <div class="preview-wrapper"
+                            style="display: {{ 'block' if record.license_image_data else 'none' }}">
+                            <img
+                                src="{{
+                                    ('data:image/png;base64,' + record.license_image_data)
+                                    if record.license_image_data
+                                    else url_for('static', filename='images/default.jpg')
+                                }}"
+                                alt="营业执照"
+                                class="img-thumbnail"
+                                title="点击可放大"
+{#                                style="max-width: 100%; height: auto;"#}
+                            />
+                        </div>
+                        <div class="upload-placeholder"
+                            style="display: {{ 'none' if record.license_image_data else 'block' }}">
+                            <i class="fas fa-cloud-upload-alt fa-2x"></i>
+                            <span>营业执照</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 申请事项 -->
+        <div class="row mb-3">
+            <label for="content" class="col-sm-2 col-form-label">申请事项：</label>
+            <div class="col-sm-8">
+                <textarea class="form-control" id="content" name="content" rows="6" readonly>{{ record.content }}</textarea>
+            </div>
+        </div>
+
+        <!-- 备注（可编辑） -->
+       {% if session['user_id'] != 7 %}
+            <div class="row mb-3">
+                <label for="content" class="col-sm-2 col-form-label">备注：</label>
+                <div class="col-sm-8">
+                    <textarea class="form-control" id="content" name="content" rows="6" readonly>{{ record.todo_remark }}</textarea>
+                </div>
+            </div>
+       {% else %}
+            <div class="row mb-3">
+                <label for="remark" class="col-sm-2 col-form-label">备注：</label>
+                <div class="col-sm-8">
+                    <textarea class="form-control" id="remark" name="remark" rows="6">{{ record.todo_remark }}</textarea>
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- 提交按钮 -->
+        <div class="row">
+            <div class="col-sm-10 offset-sm-2">
+                <button type="submit" class="btn btn-primary me-2">保存修改</button>
+                <a href="{{ url_for('main.shop_owner_change') }}" class="btn btn-outline-secondary">取消</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- 模态框 -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imageModalLabel">查看图片</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="modalImage" src="" alt="放大图片" class="img-fluid" />
+            </div>
+        </div>
+    </div>
+</div>
+
+{#<style>#}
+{#    /* 图片上传容器 */#}
+{#    .image-upload-container {#}
+{#        display: flex;#}
+{#        flex-wrap: wrap;#}
+{#        gap: 10px;#}
+{#    }#}
+{##}
+{#    /* 上传框样式 */#}
+{#    .image-upload-box {#}
+{#        height: 180px;#}
+{#        width: 240px;#}
+{#        position: relative;#}
+{#        cursor: pointer;#}
+{#        border: 1px dashed #ced4da;#}
+{#        border-radius: 4px;#}
+{#        background: #f8f9fa;#}
+{#    }#}
+{##}
+{#    /* 预览容器 */#}
+{#    .preview-wrapper {#}
+{#        position: absolute;#}
+{#        top: 0;#}
+{#        left: 0;#}
+{#        width: 100%;#}
+{#        height: 100%;#}
+{#        background: #f8f9fa;#}
+{#    }#}
+{##}
+{#    .preview-wrapper img {#}
+{#        width: 100%;#}
+{#        height: 100%;#}
+{#        object-fit: contain;#}
+{#        padding: 5px;#}
+{#    }#}
+{##}
+{#    /* 删除按钮 */#}
+{#    .delete-btn {#}
+{#        position: absolute;#}
+{#        top: 5px;#}
+{#        right: 5px;#}
+{#        width: 22px;#}
+{#        height: 22px;#}
+{#        background: rgba(255, 0, 0, 0.7);#}
+{#        color: white;#}
+{#        border-radius: 50%;#}
+{#        display: flex;#}
+{#        align-items: center;#}
+{#        justify-content: center;#}
+{#        cursor: pointer;#}
+{#        font-size: 16px;#}
+{#        z-index: 10;#}
+{#        border: 1px solid white;#}
+{#    }#}
+{##}
+{#    /* 占位符样式 */#}
+{#    .upload-placeholder {#}
+{#        width: 100%;#}
+{#        height: 100%;#}
+{#        display: flex;#}
+{#        flex-direction: column;#}
+{#        align-items: center;#}
+{#        justify-content: center;#}
+{#        color: #6c757d;#}
+{#    }#}
+{##}
+{#    /* 必填字段标记 */#}
+{#    .text-danger {#}
+{#        color: #dc3545;#}
+{#    }#}
+{##}
+{#    /* 响应式调整 */#}
+{#    @media (max-width: 768px) {#}
+{#        .image-upload-box {#}
+{#            width: 100%;#}
+{#        }#}
+{#    }#}
+{#</style>#}
+
+<script>
+    document.querySelectorAll('.preview-wrapper img').forEach(function(img) {
+        img.addEventListener('click', function() {
+            const modalImage = document.getElementById('modalImage');
+            modalImage.src = img.src;
+            const imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
+            imageModal.show();
+        });
+    });
+</script>
+{% endblock %}

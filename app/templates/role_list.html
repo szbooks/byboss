@@ -1,0 +1,109 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+    <div class="content-area">
+        <!-- 顶部操作栏 -->
+        <div class="d-flex align-items-center flex-wrap mb-3">
+            <!-- 操作按钮 -->
+            <a href="{{ url_for('main.add_role') }}" class="btn btn-primary me-2 mb-2">添加角色</a>
+        </div>
+        <table class="table table-striped table-bordered table-light table-hover">
+            <thead>
+            <tr>
+                <th>角色名称</th>
+                <th>操作</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for role  in results %}
+                <tr>
+                    <td>{{ role.role_name }}</td>
+                    <td>
+                        <a href="{{ url_for('main.edit_role', id=role.role_id) }}" class="btn btn-sm btn-primary">修改</a>
+{#                        <form id="delForm" action="{{ url_for('main.del_role') }}" method="POST">#}
+{#                            <input type="hidden" name="role_id" id="role_id" value="">#}
+{#                        </form>#}
+                        <a class="btn btn-sm btn-primary" id="del_receipt" data-id="{{ role.role_id }}" data-name="{{ role.role_name }}" onclick="confirmDelete(event, this)" class="text-link" style="text-decoration: underline;">删除</a>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <!-- 底部分页控件 -->
+        <nav aria-label="Page navigation" class="d-flex justify-content-end pagination-container">
+            <ul class="pagination pagination-sm">
+                <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('main.roles', page=page-1) }}">上一页</a>
+                </li>
+                {% for num in range(1, total_pages + 1) %}
+                    <li class="page-item {% if num == page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('main.roles', page=num) }}">{{ num }}</a>
+                    </li>
+                {% endfor %}
+                <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('main.roles', page=page+1) }}">下一页</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+
+    <script>
+        function confirmDelete(event, element) {
+            event.preventDefault(); // 阻止默认的链接行为
+
+            const receiptId = element.getAttribute('data-id');
+            const role_name = element.getAttribute('data-name');
+            {#console.log("receiptId", receiptId)#}
+
+           if (confirm(`确定要删除 [${role_name}] 吗？`)) {
+                // 如果用户确认删除，执行删除操作
+                const role_id = element.getAttribute('data-id'); // 假设按钮还有 data-id 属性
+                fetch('/del_role', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        role_id: role_id
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showCopySuccessToast()
+                        // 刷新页面或重新加载列表
+                        location.reload();
+                    } else {
+                        alert('角色删除失败！');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('发生错误，请重试！');
+                });
+            }
+        }
+
+        function showCopySuccessToast() {
+            console.log("showCopySuccessToast")
+            var toastDiv = document.createElement('div');
+            toastDiv.textContent = '删除角色成功';
+            toastDiv.style.position = 'fixed';
+            toastDiv.style.top = '10%';
+            toastDiv.style.left = '50%';
+            toastDiv.style.transform = 'translateX(-50%)';
+            toastDiv.style.backgroundColor = '#f8d7da';
+            toastDiv.style.color = '#721c24';
+            toastDiv.style.padding = '10px';
+            toastDiv.style.borderRadius = '5px';
+            toastDiv.style.zIndex = '1000';
+            toastDiv.style.minWidth = '250px';
+            toastDiv.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
+            document.body.appendChild(toastDiv);
+            // 移除提示信息
+            setTimeout(function () {
+                document.body.removeChild(toastDiv);
+            }, 5000);
+        }
+    </script>
+{% endblock %}

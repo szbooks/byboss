@@ -1,0 +1,505 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+<div class="container">
+    <!-- 全局加载遮罩（初始隐藏，通过CSS控制） -->
+    <div id="pageLoading" class="page-loading-overlay" style="display: none;">
+        <div class="page-loading-spinner"></div>
+        <div class="loading-text">加载中...</div>
+    </div>
+
+    <form action="{{ url_for('main.edit_shop_owner_change', id=record.id) }}" method="post" id="editForm" enctype="multipart/form-data">
+        <!-- 公司ID -->
+        <div class="row mb-3">
+            <label for="company_id" class="col-sm-2 col-form-label">公司ID：<span class="text-danger">*</span></label>
+            <div class="col-sm-4">
+                <input type="text" class="form-control" id="company_id" name="company_id" value="{{ record.company_id }}" required>
+                <div class="invalid-feedback">请填写公司ID</div>
+            </div>
+        </div>
+
+        <!-- 新店主 -->
+        <div class="row mb-3">
+            <label for="new_owner" class="col-sm-2 col-form-label">新店主：</label>
+            <div class="col-sm-4">
+                <input type="text" class="form-control" id="new_owner" name="new_owner" value="{{ record.new_owner }}">
+                <div class="invalid-feedback">请填写新店主</div>
+            </div>
+        </div>
+
+        <!-- 证件上传 -->
+        <div class="row mb-3">
+            <label class="col-sm-2 col-form-label">证件上传：<span class="text-danger">*</span></label>
+            <div class="col-sm-8">
+                <div class="image-upload-container">
+                    <!-- 身份证正面 -->
+                    <div class="image-upload-box">
+                        <input type="file" id="idFrontInput" name="id_front_image" style="display:none;" accept="image/*" />
+                        <input type="hidden" name="existing_id_front" value="{{ record.card_front_image }}" />
+                        <div id="idFrontWrapper" class="preview-wrapper" style="display: none;">
+                            <div class="loading-spinner"></div>
+                            <img src="" alt="身份证正面" />
+                            <div class="delete-btn">×</div>
+                        </div>
+                        <div id="idFrontPlaceholder" class="upload-placeholder">
+                            <i class="fas fa-cloud-upload-alt fa-2x"></i>
+                            <span>身份证正面</span>
+                        </div>
+                    </div>
+
+                    <!-- 身份证反面 -->
+                    <div class="image-upload-box">
+                        <input type="file" id="idBackInput" name="id_back_image" style="display:none;" accept="image/*" />
+                        <input type="hidden" name="existing_id_back" value="{{ record.card_back_image }}" />
+                        <div id="idBackWrapper" class="preview-wrapper" style="display: none;">
+                            <div class="loading-spinner"></div>
+                            <img src="" alt="身份证反面" />
+                            <div class="delete-btn">×</div>
+                        </div>
+                        <div id="idBackPlaceholder" class="upload-placeholder">
+                            <i class="fas fa-cloud-upload-alt fa-2x"></i>
+                            <span>身份证反面</span>
+                        </div>
+                    </div>
+
+                    <!-- 营业执照 -->
+                    <div class="image-upload-box">
+                        <input type="file" id="licenseInput" name="license_image" style="display:none;" accept="image/*" />
+                        <input type="hidden" name="existing_license" value="{{ record.license_image_data }}" />
+                        <div id="licenseWrapper" class="preview-wrapper" style="display: none;">
+                            <div class="loading-spinner"></div>
+                            <img src="" alt="营业执照" />
+                            <div class="delete-btn">×</div>
+                        </div>
+                        <div id="licensePlaceholder" class="upload-placeholder">
+                            <i class="fas fa-cloud-upload-alt fa-2x"></i>
+                            <span>营业执照</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 申请事项 -->
+        <div class="row mb-3">
+            <label for="content" class="col-sm-2 col-form-label">申请事项：</label>
+            <div class="col-sm-8">
+                <textarea class="form-control" id="content" name="content" rows="6" >{{ record.content }}</textarea>
+                <div class="invalid-feedback">请填写申请事项</div>
+            </div>
+        </div>
+
+        <!-- 提交按钮 -->
+        <div class="row">
+            <div class="col-sm-10 offset-sm-2">
+                <button type="submit" class="btn btn-primary me-2">保存修改</button>
+                <a href="{{ url_for('main.shop_owner_change') }}" class="btn btn-outline-secondary">取消</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<style>
+    /* 全局加载样式 */
+    .page-loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.95);
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        transition: opacity 0.3s ease;
+    }
+
+    .page-loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid #f3f3f3;
+        border-top: 5px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    .loading-text {
+        margin-top: 15px;
+        color: #555;
+        font-size: 16px;
+    }
+
+    /* 图片上传容器 */
+    .image-upload-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .image-upload-box {
+        height: 150px;
+        width: 210px;
+        position: relative;
+        cursor: pointer;
+        border: 1px dashed #ced4da;
+        border-radius: 4px;
+        background: #f8f9fa;
+    }
+
+    .preview-wrapper {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #f8f9fa;
+    }
+
+    .preview-wrapper img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        padding: 5px;
+    }
+
+    .loading-spinner {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 40px;
+        height: 40px;
+        border: 4px solid rgba(0, 0, 0, 0.1);
+        border-radius: 50%;
+        border-top-color: #007bff;
+        animation: spin 1s linear infinite;
+        display: none;
+    }
+
+    .delete-btn {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        width: 22px;
+        height: 22px;
+        background: rgba(255, 0, 0, 0.7);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 16px;
+        z-index: 10;
+        border: 1px solid white;
+    }
+
+    .upload-placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #6c757d;
+    }
+
+    .text-danger {
+        color: #dc3545;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 768px) {
+        .image-upload-box {
+            width: 100%;
+        }
+    }
+</style>
+
+<script>
+// 立即显示加载状态
+document.addEventListener('DOMContentLoaded', function() {
+    const pageLoader = document.getElementById('pageLoading');
+    pageLoader.style.display = 'flex';
+
+    // 初始化表单交互
+    initFormInteractions();
+
+    // 异步加载内容
+    setTimeout(() => {
+        loadContent().finally(() => {
+            // 隐藏加载状态
+            setTimeout(() => {
+                pageLoader.style.opacity = '0';
+                setTimeout(() => {
+                    pageLoader.style.display = 'none';
+                }, 300);
+            }, 200);
+        });
+    }, 0);
+});
+
+// 初始化表单交互
+function initFormInteractions() {
+    // 文件上传点击事件
+    document.querySelectorAll('.image-upload-box').forEach(box => {
+        box.addEventListener('click', function(e) {
+            if (!e.target.classList.contains('delete-btn')) {
+                const input = this.querySelector('input[type="file"]');
+                input.click();
+            }
+        });
+    });
+
+    // 文件选择事件
+    document.querySelectorAll('input[type="file"]').forEach(input => {
+        input.addEventListener('change', function(e) {
+            if (this.files && this.files[0]) {
+                const wrapperId = this.id.replace('Input', 'Wrapper');
+                const placeholderId = this.id.replace('Input', 'Placeholder');
+                previewImage(this, wrapperId, placeholderId);
+            }
+        });
+    });
+
+    // 删除按钮事件
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const wrapper = this.closest('.preview-wrapper');
+            const inputId = wrapper.id.replace('Wrapper', 'Input');
+            const placeholderId = wrapper.id.replace('Wrapper', 'Placeholder');
+            removeImage(inputId, wrapper.id, placeholderId);
+        });
+    });
+
+    // 表单提交
+    const form = document.getElementById('editForm');
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        if (validateForm()) {
+            submitForm(this);
+        }
+    });
+}
+
+// 异步加载内容
+function loadContent() {
+    return new Promise((resolve) => {
+        const promises = [
+            loadExistingImages(),
+            // 可以添加其他需要异步加载的内容
+        ];
+
+        Promise.all(promises).then(resolve).catch(resolve);
+    });
+}
+
+// 加载已有图片
+function loadExistingImages() {
+    return new Promise((resolve) => {
+        const promises = [
+            loadImage('idFrontWrapper', 'idFrontPlaceholder',
+                    document.querySelector('input[name="existing_id_front"]').value),
+            loadImage('idBackWrapper', 'idBackPlaceholder',
+                    document.querySelector('input[name="existing_id_back"]').value),
+            loadImage('licenseWrapper', 'licensePlaceholder',
+                    document.querySelector('input[name="existing_license"]').value)
+        ];
+
+        Promise.all(promises).then(resolve).catch(resolve);
+    });
+}
+
+// 加载单个图片
+function loadImage(wrapperId, placeholderId, imageData) {
+    return new Promise((resolve) => {
+        const wrapper = document.getElementById(wrapperId);
+        const placeholder = document.getElementById(placeholderId);
+        const img = wrapper.querySelector('img');
+        const spinner = wrapper.querySelector('.loading-spinner');
+
+        if (!imageData) {
+            return resolve();
+        }
+
+        spinner.style.display = 'block';
+        wrapper.style.display = 'block';
+        placeholder.style.display = 'none';
+
+        // 模拟网络请求
+        setTimeout(() => {
+            fetchImageData(imageData)
+                .then(imageUrl => {
+                    img.onload = () => {
+                        spinner.style.display = 'none';
+                        resolve();
+                    };
+                    img.onerror = () => {
+                        spinner.style.display = 'none';
+                        wrapper.style.display = 'none';
+                        placeholder.style.display = 'flex';
+                        resolve();
+                    };
+                    img.src = imageUrl;
+                })
+                .catch(() => {
+                    spinner.style.display = 'none';
+                    wrapper.style.display = 'none';
+                    placeholder.style.display = 'flex';
+                    resolve();
+                });
+        }, 300);
+    });
+}
+
+// 预览新选择的图片
+function previewImage(input, wrapperId, placeholderId) {
+    const wrapper = document.getElementById(wrapperId);
+    const placeholder = document.getElementById(placeholderId);
+    const img = wrapper.querySelector('img');
+    const spinner = wrapper.querySelector('.loading-spinner');
+    const file = input.files[0];
+
+    spinner.style.display = 'block';
+    wrapper.style.display = 'block';
+    placeholder.style.display = 'none';
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        // 添加小延迟让加载动画可见
+        setTimeout(() => {
+            img.onload = function() {
+                spinner.style.display = 'none';
+            };
+            img.onerror = function() {
+                spinner.style.display = 'none';
+                wrapper.style.display = 'none';
+                placeholder.style.display = 'flex';
+            };
+            img.src = e.target.result;
+        }, 200);
+    };
+    reader.readAsDataURL(file);
+}
+
+// 删除图片
+function removeImage(inputId, wrapperId, placeholderId) {
+    const input = document.getElementById(inputId);
+    const wrapper = document.getElementById(wrapperId);
+    const placeholder = document.getElementById(placeholderId);
+    const img = wrapper.querySelector('img');
+    const spinner = wrapper.querySelector('.loading-spinner');
+
+    wrapper.style.opacity = '1';
+    wrapper.style.transition = 'opacity 0.3s';
+    wrapper.style.opacity = '0';
+
+    setTimeout(() => {
+        input.value = '';
+        img.src = '';
+        spinner.style.display = 'none';
+        wrapper.style.display = 'none';
+        placeholder.style.display = 'flex';
+        wrapper.style.opacity = '1';
+    }, 300);
+}
+
+// 表单验证
+function validateForm() {
+    let isValid = true;
+    const requiredInputs = document.querySelectorAll('input[required], textarea[required]');
+
+    requiredInputs.forEach(input => {
+        if (!input.value.trim()) {
+            input.classList.add('is-invalid');
+            isValid = false;
+        } else {
+            input.classList.remove('is-invalid');
+        }
+    });
+
+    const fileInputs = document.querySelectorAll('input[type="file"][required]');
+    fileInputs.forEach(input => {
+        const wrapper = document.getElementById(input.id.replace('Input', 'Wrapper'));
+        const placeholder = document.getElementById(input.id.replace('Input', 'Placeholder'));
+
+        if (!input.files || input.files.length === 0) {
+            if (placeholder.style.display === 'flex') {
+                input.classList.add('is-invalid');
+                isValid = false;
+            }
+        } else {
+            input.classList.remove('is-invalid');
+        }
+    });
+
+    return isValid;
+}
+
+// 表单提交
+function submitForm(form) {
+    const formData = new FormData(form);
+    const submitBtn = form.querySelector('button[type="submit"]');
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 提交中...';
+
+    fetch(form.action, {
+        method: 'POST',
+        body: formData,
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('网络响应不正常');
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            setTimeout(() => {
+                window.location.href = "{{ url_for('main.shop_owner_change') }}";
+            }, 1500);
+        } else {
+            throw new Error(data.message || '提交失败');
+        }
+    })
+    .catch(error => {
+        console.error('提交错误:', error);
+        showErrorAlert(error.message || '提交过程中发生错误');
+        submitBtn.disabled = false;
+        submitBtn.textContent = '保存';
+    });
+}
+
+// 显示错误提示
+function showErrorAlert(message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-danger position-fixed top-0 start-50 translate-middle-x mt-3';
+    alertDiv.style.zIndex = '9999';
+    alertDiv.textContent = message;
+    document.body.appendChild(alertDiv);
+
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+
+// 模拟获取图片数据
+function fetchImageData(imageData) {
+    return new Promise((resolve, reject) => {
+        setTimeout(() => {
+            if (imageData) {
+                resolve(`data:image/jpeg;base64,${imageData}`);
+            } else {
+                reject(new Error('No image data'));
+            }
+        }, 500);
+    });
+}
+</script>
+{% endblock %}

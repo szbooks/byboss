@@ -1,0 +1,58 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+    <div class="content-area">
+
+        <!-- 顶部操作栏 -->
+        <div class="d-flex align-items-center flex-wrap mb-3">
+            <!-- 操作按钮 -->
+            <a href="{{ url_for('main.account_add') }}" class="btn btn-primary me-2 mb-2">添加账号</a>
+        </div>
+        <table class="table table-striped table-bordered table-light table-hover">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>用户名</th>
+                    <th>角色</th>
+                    <th>姓名</th>
+                    <th>手机号</th>
+                    <th>邮箱</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for account in results %}
+                <tr>
+                    <td>{{ account.id }}</td>
+                    <td>{{ account.username }}</td>
+                    <td>{{ account.role_name }}</td>
+                    <td>{{ account.realname|default('', true) }}</td>
+                    <td>{{ account.phone|default('', true) }}</td>
+                    <td>{{ account.email|default('', true) }}</td>
+                    <td>
+                        <a href="{{ url_for('main.account_setrole', user_id=account.id) }}" class="btn btn-primary btn-sm">修改角色</a>
+                        <a href="{{ url_for('main.account_delete', id=account.id) }}" class="btn btn-danger btn-sm">删除</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+         <!-- 底部分页控件 -->
+        <nav aria-label="Page navigation" class="d-flex justify-content-end pagination-container">
+            <ul class="pagination pagination-sm">
+                <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('main.accounts', page=page-1) }}">上一页</a>
+                </li>
+                {% for num in range(1, total_pages + 1) %}
+                    <li class="page-item {% if num == page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('main.accounts', page=num) }}">{{ num }}</a>
+                    </li>
+                {% endfor %}
+                <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('main.accounts', page=page+1) }}">下一页</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+
+{% endblock %}

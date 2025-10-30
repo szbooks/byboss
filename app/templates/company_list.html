@@ -1,0 +1,263 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+    <div class="content-area">
+        <!-- 顶部操作栏 -->
+        <div class="d-flex align-items-center flex-wrap mb-3">
+            <!-- 查询表单 -->
+            <form id="company-form" action="{{ url_for('main.companies') }}" method="get" class="d-flex align-items-center mb-2 flex-grow-0" onsubmit="return validateForm()">
+                <!-- New Account Status Dropdown -->
+
+                <!-- Account Status Dropdown -->
+                <input type="text" class="input-group-text me-2" name="company_id" placeholder="输入公司ID" value="{{ request.args.get('company_id', '') }}">
+{#                <input type="text" class="input-group-text me-2" name="self_code" placeholder="输入自己的邀请码" value="{{ request.args.get('self_code', '') }}">#}
+                <select class="form-select me-2" name="account_status" id="account_status">
+                    <option value=''>账号状态</option>
+                    <option value="5" {% if status_filter['account_status'] == '5' %}selected{% endif %}>未激活</option>
+                    <option value="1" {% if status_filter['account_status'] == '1' %}selected{% endif %}>试用期</option>
+                    <option value="2" {% if status_filter['account_status'] == '2' %}selected{% endif %}>已付费</option>
+                    <option value="3" {% if status_filter['account_status'] == '3' %}selected{% endif %}>保号期</option>
+                    <option value="4" {% if status_filter['account_status'] == '4' %}selected{% endif %}>冻结期</option>
+                </select>
+
+                <div class="input-group me-2" style="align-items: baseline;">
+                    <span class="input-group-text">到期日</span>
+                    <input type="date" class="form-control" name="expiry_month" id="expiry_month" value="{{ request.args.get('expiry_month', '') }}"/>
+                </div>
+
+{#                <div class="input-group me-2" style="align-items: baseline;">#}
+{#                    <select class="form-select" name="category" id="category">#}
+{#                        <option value=''>类目</option>#}
+{#                        <option value="room_count" {% if status_filter['category'] == 'room_count' %}selected{% endif %}>房号数</option>#}
+{#                        <option value="platform_count" {% if status_filter['category'] == 'platform_count' %}selected{% endif %}>平台数</option>#}
+{#                        <option value="account_count" {% if status_filter['category'] == 'account_count' %}selected{% endif %}>账号数</option>#}
+{#                        <option value="pay_pricesum" {% if status_filter['category'] == 'pay_pricesum' %}selected{% endif %}>付费总金额</option>#}
+{#                        <option value="recent_orders" {% if status_filter['category'] == 'recent_orders' %}selected{% endif %}>7日订单数</option>#}
+{#                    </select>#}
+{#                    <input type="text" class="form-control" name="start_value" placeholder="开始值" value="{{ request.args.get('start_value', '') }}">#}
+{#                    <p>-</p>#}
+{#                    <input type="text" class="form-control" name="end_value" placeholder="结束值" value="{{ request.args.get('end_value', '') }}">#}
+{#                </div>#}
+
+                  <select class="form-select me-2" name="api" id="api">
+                      <option value=''>自助机</option>
+{#                      <option value="闪住" {% if status_filter['api'] == '闪住' %}selected{% endif %}>闪住</option>#}
+{#                      <option value="利迈" {% if status_filter['api'] == '利迈' %}selected{% endif %}>利迈</option>#}
+{#                      <option value="未来居" {% if status_filter['api'] == '未来居' %}selected{% endif %}>未来居</option>#}
+{#                      <option value="新绎" {% if status_filter['api'] == '新绎' %}selected{% endif %}>新绎</option>#}
+{#                      <option value="海同" {% if status_filter['api'] == '海同' %}selected{% endif %}>海同</option>#}
+{#                      <option value="小舍" {% if status_filter['api'] == '小舍' %}selected{% endif %}>小舍</option>#}
+{#                      <option value="享住" {% if status_filter['api'] == '享住' %}selected{% endif %}>享住</option>#}
+{#                      <option value="新绎正式" {% if status_filter['api'] == '新绎正式' %}selected{% endif %}>新绎正式</option>#}
+{#                      <option value="北山下" {% if status_filter['api'] == '北山下' %}selected{% endif %}>北山下</option>#}
+{#                      <option value="住必满" {% if status_filter['api'] == '住必满' %}selected{% endif %}>住必满</option>#}
+                      <option value="szym-api-s.szzzqt.com" {% if status_filter['api'] == 'szym-api-s.szzzqt.com' %}selected{% endif %}>闪住</option>
+                      <option value="h.limaikej.com" {% if status_filter['api'] == 'h.limaikej.com' %}selected{% endif %}>利迈</option>
+                      <option value="dc.yikett.com" {% if status_filter['api'] == 'dc.yikett.com' %}selected{% endif %}>未来居</option>
+                      <option value="map.zyhlm.cn" {% if status_filter['api'] == 'map.zyhlm.cn' %}selected{% endif %}>新绎</option>
+                      <option value="tps.checkinhub.cn" {% if status_filter['api'] == 'tps.checkinhub.cn' %}selected{% endif %}>海同</option>
+                      <option value="system.xshetech.com" {% if status_filter['api'] == 'system.xshetech.com"' %}selected{% endif %}>小舍</option>
+                      <option value="xymanage.xiangyaokeji.com" {% if status_filter['api'] == 'xymanage.xiangyaokeji.com' %}selected{% endif %}>享住</option>
+                      <option value="map.zyhlm.cn" {% if status_filter['api'] == 'map.zyhlm.cn' %}selected{% endif %}>新绎正式</option>
+                      <option value="erp.lydjiezhibao.com" {% if status_filter['api'] == 'erp.lydjiezhibao.com' %}selected{% endif %}>北山下</option>
+                      <option value="apihos-out.zhubiman.com" {% if status_filter['api'] == 'apihos-out.zhubiman.com' %}selected{% endif %}>住必满</option>
+
+                </select>
+
+                <button type="submit" class="btn btn-outline-primary fixed-width-btn">查询</button>
+            </form>
+
+            <div class="col-md-12">
+                <p>记录总数: {{ total_count }}</p>
+            </div>
+            <table id="company-table" class="table table-striped table-bordered table-light table-hover">
+                <thead>
+                <tr>
+                    <th>公司ID</th>
+                    <th>公司名称</th>
+                    <th>账号状态</th><!-- 试用期，已付费，保号期，冻结期，紧急延期 -->
+                    <th>注册信息</th>
+                    <th>注册日</th>
+                    <th>邀请码</th>
+                    <th>到期日</th>
+                    <th>注册人</th>
+                    <th>注册来源</th>
+                    <th>房号数</th>
+                    <th>直连平台数</th>
+                    <th>直连账号数</th>
+                    <th>员工数</th>
+                    <th>付费总金额</th>
+                    <th>付费总次数</th>
+                    <th>最近付费开始日</th>
+{#                    <th>功能使用</th><!-- 房态同步，精确库存，入住，保洁，汇聊，房价，微店......-->#}
+                    <th>接口（自助机）</th>
+                    <th>7日订单数</th>
+                    <th>最近登录</th>
+                  </tr>
+                </thead>
+                <tbody>
+                {% for company  in results %}
+                    <tr>
+                        <td>
+                            <a href="https://www.bypms.cn/admin/user/fakelogin?companyId={{ company.company_id }}" target="_blank">
+                                {{ company.company_id }}
+                            </a>
+                        </td>
+
+
+                        <td>{{ company.company_name }}</td>
+                        <td>
+                            {% if company.account_state == '1' %}
+                                <span class="status-pending">试用期</span>
+                            {% elif company.account_state == '2' %}
+                                已付费
+                            {% elif company.account_state == '3' %}
+                                保号期
+                            {% elif company.account_state == '4' %}
+                                冻结期
+                            {% elif company.account_state == '5' %}
+                                未激活
+                            {% else %}
+                                未知状态
+                            {% endif %}
+                        </td>
+                        <td>
+                <div class="regi-info" data-regi-infor="{{ company.regi_infor | default("")}}">
+                    <!-- 动态渲染的内容将插入到这里 -->
+                </div>
+            </td>
+                        <td>{% if company.registration_date %}{{ company.registration_date }}{% else %}{{ "" }}{% endif %}</td>
+                        <td>{% if company.from_code %}{{ company.from_code }}{% else %}{{ "" }}{% endif %}</td>
+                        <td>{% if company.end_data %}{{ company.end_data }}{% else %}{{ "" }}{% endif %}</td>
+                        <td>{% if company.registrant %}{{ company.registrant }}{% else %}{{ "" }}{% endif %}</td>
+                        <td>{% if company.source %}{{ company.source }}{% else %}{{ "" }}{% endif %}</td>
+                        <td>{{ company.room_count }}</td>
+                        <td>{{ company.platform_count }}</td>
+                        <td>{{ company.account_count }}</td>
+                        <td>{{ company.staff_count }}</td>
+                        <td>{% if company.pay_pricesum %}{{ company.pay_pricesum }}{% else %}{{ "" }}{% endif %}</td>
+                        <td>{{ company.pay_count }}</td>
+                        <td>{% if company.last_paydate %}{{ company.last_paydate }}{% else %}{{ "" }}{% endif %}</td>
+                        <td>
+                            {% if company.channel %}{{ company.channel }}{% else %}{{ "" }}{% endif %}
+
+                        </td>
+
+
+                        <td>{{ company.recent_orders }}</td>
+                        <td>{% if company.last_logon %}{{ company.last_logon }}{% else %}{{ "" }}{% endif %}</td>
+
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+
+            <!-- 底部分页控件 -->
+            <nav aria-label="Page navigation" class="d-flex justify-content-end pagination-container">
+                <ul class="pagination pagination-sm">
+                    {% for page in page_numbers %}
+                        {% if page == '...' %}
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% else %}
+                            <li class="page-item {% if page == current_page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('main.companies', page=page) }}">{{ page }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+            </nav>
+
+        </div>
+    </div>
+
+    <script>
+        function validateForm() {
+            var category = document.getElementById('category').value;
+            var startValue = document.getElementsByName('start_value')[0].value;
+            var endValue = document.getElementsByName('end_value')[0].value;
+
+            if (!category && (startValue || endValue)) {
+                alert('请选择类目');
+                return false; // Prevent form submission
+            }
+
+            return true; // Allow form submission
+        }
+    </script>
+
+    <script>
+    // 页面加载完成后执行
+    document.addEventListener("DOMContentLoaded", function () {
+        // 获取所有 regi-info 容器
+        const regiInfoContainers = document.querySelectorAll("#company-table tbody .regi-info");
+        console.log(regiInfoContainers)
+
+        // 遍历每个容器并动态生成内容
+        regiInfoContainers.forEach(container => {
+            // 获取对应行的 regiInforStr
+            const regiInforStr = container.getAttribute("data-regi-infor");
+            if (!regiInforStr) {
+                console.error("regiInforStr 未定义");
+                return;
+            }
+
+            try {
+                // 解析 JSON 数据
+                const regiInfor = JSON.parse(regiInforStr);
+
+                // 动态生成内容
+                const content = `
+                    <div>主体类型：${companyTypeMap[regiInfor.companyType] || "未知"}</div>
+                    <div>店铺模式：${shopModeMap[regiInfor.shopMode] || "未知"}</div>
+                    <div>有无前台：${receptionMap[regiInfor.reception] || "未知"}</div>
+                    <div>房间数量：${regiInfor.roomCount || "未知"}</div>
+                    <div>所在城市：${regiInfor.city || "未知"}</div>
+                    <div>身份：${roleMap[regiInfor.role] || "未知"}</div>
+                `;
+
+                // 插入到页面
+                container.innerHTML = content;
+            } catch (error) {
+                console.error("解析 regiInforStr 失败:", error);
+            }
+        });
+    });
+
+    // companyType 映射
+    const companyTypeMap = {
+        "homestay": "民宿",
+        "hotel": "酒店",
+        "youthHostel": "青旅"
+    };
+
+    // role 映射
+    const roleMap = {
+        "boss": "老板",
+        "manager": "店长",
+        "reception": "前台",
+        "housekeeper": "管家",
+        "finance": "财务",
+        "operation": "运营",
+        "proxyOperation": "代运营",
+        "other": "其它"
+    };
+
+    // shopMode 映射
+    const shopModeMap = {
+        "single": "单店",
+        "multiple": "多店"
+    };
+
+    // reception 映射
+    const receptionMap = {
+        "N": "无",
+        "Y": "有"
+    };
+</script>
+
+
+
+    {#    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">#}
+    {#    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>#}
+    {#    <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.js"></script>#}
+{% endblock %}

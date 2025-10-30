@@ -1,0 +1,60 @@
+<!-- templates/layout/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- 头部信息 -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>宝寓boss</title>
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/image/222_256x256.png">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+{#    <link rel="stylesheet" href="https://cdn.staticfile.org/twitter-bootstrap/5.3.0/css/bootstrap.min.css">#}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebars.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/presales_followup_list.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/company_list.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/laydate.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/themes/default/style.min.css"/>
+    <script src="{{ url_for('static', filename='js/jquery-3.6.4.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"></script>
+    <script src="{{ url_for('static', filename='js/sidebars.js') }}"></script>
+    <!-- Bootstrap CSS -->
+
+
+</head>
+<body>
+    {% include 'layout/_navbar.html' %}   <!-- 导航栏 -->
+
+    <div class="container-fluid">
+{#    <div class="flex-container">#}
+        <div class="row">
+            {% include 'layout/_sidebar.html' %}  <!-- 侧边栏 -->
+
+            <div class="col content-area">
+{#            {% include 'layout/_sidebar.html' %}#}
+{#            <div class="col content-area" style="min-height: calc(100vh - 50px);">#}
+                <!-- 面包屑导航 -->
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb border-bottom">
+                        {% for text, url in breadcrumbs %}
+                            {% if url %}
+                                <li class="breadcrumb-item">{{ text }}</li>
+                            {% else %}
+                                <li class="breadcrumb-item active" aria-current="page">{{ text }}</li>
+                            {% endif %}
+                        {% endfor %}
+                    </ol>
+                </nav>
+                {% block content %}{% endblock %}  <!-- 功能页面内容 -->
+            </div>
+        </div>
+    </div>
+{#    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>#}
+
+
+</body>
+</html>

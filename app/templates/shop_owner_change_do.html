@@ -1,0 +1,243 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+<div class="container">
+    <form action="{{ url_for('main.do_shop_owner_change', id=record.id) }}" method="post" id="editForm" enctype="multipart/form-data">
+        <!-- 公司ID -->
+        <div class="row mb-3">
+            <label for="company_id" class="col-sm-2 col-form-label">公司ID：<span class="text-danger">*</span></label>
+            <div class="col-sm-4">
+                <input type="text" class="form-control" id="company_id" name="company_id" value="{{ record.company_id }}" required>
+                <div class="invalid-feedback">请填写公司ID</div>
+            </div>
+        </div>
+
+        <!-- 新店主 -->
+        <div class="row mb-3">
+            <label for="new_owner" class="col-sm-2 col-form-label">新店主：</label>
+            <div class="col-sm-4">
+                <input type="text" class="form-control" id="new_owner" name="new_owner" value="{{ record.new_owner }}">
+                <div class="invalid-feedback">请填写新店主</div>
+            </div>
+        </div>
+
+        <!-- 证件上传 -->
+        <div class="row mb-3">
+            <label class="col-sm-2 col-form-label">证件上传：<span class="text-danger">*</span></label>
+            <div class="col-sm-8">
+                <div class="image-upload-container">
+                    <div class="image-upload-box">
+                        <input type="file" id="idFrontInput" name="id_front_image" style="display:none;" accept="image/*" />
+                        <input type="hidden" name="existing_id_front" value="{{ record.card_front_image }}" />
+                        <div id="idFrontWrapper" class="preview-wrapper">
+                            <img src="#" alt="身份证正面" style="cursor: pointer;" />
+                            <div class="delete-btn">×</div>
+                        </div>
+                        <div id="idFrontPlaceholder" class="upload-placeholder">
+                            <i class="fas fa-cloud-upload-alt fa-2x"></i>
+                            <span>身份证正面</span>
+                        </div>
+                    </div>
+
+                    <div class="image-upload-box">
+                        <input type="file" id="idBackInput" name="id_back_image" style="display:none;" accept="image/*" />
+                        <input type="hidden" name="existing_id_back" value="{{ record.card_back_image }}" />
+                        <div id="idBackWrapper" class="preview-wrapper">
+                            <img src="#" alt="身份证反面" style="cursor: pointer;" />
+                            <div class="delete-btn">×</div>
+                        </div>
+                        <div id="idBackPlaceholder" class="upload-placeholder">
+                            <i class="fas fa-cloud-upload-alt fa-2x"></i>
+                            <span>身份证反面</span>
+                        </div>
+                    </div>
+
+                    <div class="image-upload-box">
+                        <input type="file" id="licenseInput" name="license_image" style="display:none;" accept="image/*" />
+                        <input type="hidden" name="existing_license" value="{{ record.license_image_data }}" />
+                        <div id="licenseWrapper" class="preview-wrapper">
+                            <img src="#" alt="营业执照" style="cursor: pointer;" />
+                            <div class="delete-btn">×</div>
+                        </div>
+                        <div id="licensePlaceholder" class="upload-placeholder">
+                            <i class="fas fa-cloud-upload-alt fa-2x"></i>
+                            <span>营业执照</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 申请事项 -->
+        <div class="row mb-3">
+            <label for="content" class="col-sm-2 col-form-label">申请事项：</label>
+            <div class="col-sm-8">
+                  <div class="col-5">{{ record.content }}</div>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <label for="content" class="col-sm-2 col-form-label">处理意见：</label>
+            <div class="col-sm-8">
+                <textarea class="form-control" id="final_plan" name="final_plan" rows="6">{{ record.final_plan|default('已处理', true) }}</textarea>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <label for="content" class="col-sm-2 col-form-label">备注：</label>
+            <div class="col-sm-8">
+                <textarea class="form-control" id="todo_remark" name="todo_remark" rows="6">{% if record.todo_remark %}{{ record.todo_remark }}{% else %}{{ "" }}{% endif %}</textarea>
+            </div>
+        </div>
+
+        <!-- 提交按钮 -->
+        <div class="row">
+            <div class="col-sm-10 offset-sm-2">
+                <button type="submit" name="action" value="completed" class="btn btn-primary me-2">提交处理</button>
+                <button type="submit" name="action" value="save" class="btn btn-primary me-2">保存草稿</button>
+                <a href="{{ url_for('main.shop_owner_change') }}" class="btn btn-outline-secondary">取消</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Modal for image viewing -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-body text-center">
+                <img id="modalImage" src="" class="img-fluid" alt="Preview">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 初始化图片预览
+        initImageUpload('idFrontInput', 'idFrontWrapper', 'idFrontPlaceholder', '{{ record.card_front_image }}');
+        initImageUpload('idBackInput', 'idBackWrapper', 'idBackPlaceholder', '{{ record.card_back_image }}');
+        initImageUpload('licenseInput', 'licenseWrapper', 'licensePlaceholder', '{{ record.license_image_data }}');
+
+        // 初始化Bootstrap模态框
+        window.imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
+    });
+
+    function initImageUpload(inputId, wrapperId, placeholderId, existingImage) {
+        const input = document.getElementById(inputId);
+        const wrapper = document.getElementById(wrapperId);
+        const placeholder = document.getElementById(placeholderId);
+        const img = wrapper.querySelector('img');
+        const deleteBtn = wrapper.querySelector('.delete-btn');
+
+        // 加载现有图片
+        if (existingImage) {
+            img.src = `data:image/jpeg;base64,${existingImage}`;
+            placeholder.style.display = 'none';
+            wrapper.style.display = 'block';
+        }
+
+        // 点击占位符上传图片
+        placeholder.addEventListener('click', function() {
+            input.click();
+        });
+
+        // 点击图片预览大图
+        img.addEventListener('click', function(e) {
+            if (img.src && img.src !== '#') {
+                document.getElementById('modalImage').src = img.src;
+                window.imageModal.show();
+            }
+        });
+
+        // 删除图片
+        deleteBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            input.value = '';
+            img.src = '#';
+            wrapper.style.display = 'none';
+            placeholder.style.display = 'flex';
+        });
+
+        // 文件选择变化
+        input.addEventListener('change', function(e) {
+            if (this.files && this.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    img.src = e.target.result;
+                    placeholder.style.display = 'none';
+                    wrapper.style.display = 'block';
+                };
+                reader.readAsDataURL(this.files[0]);
+            }
+        });
+    }
+</script>
+
+<style>
+    .image-upload-container {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+
+    .image-upload-box {
+        width: 200px;
+        height: 150px;
+        border: 2px dashed #ccc;
+        border-radius: 5px;
+        position: relative;
+        cursor: pointer;
+        overflow: hidden;
+    }
+
+    .preview-wrapper {
+        display: none;
+        position: relative;
+        width: 100%;
+        height: 100%;
+    }
+
+    .preview-wrapper img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        background-color: #f8f9fa;
+    }
+
+    .upload-placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        color: #6c757d;
+    }
+
+    .delete-btn {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        width: 25px;
+        height: 25px;
+        background-color: rgba(0, 0, 0, 0.5);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 10;
+        font-size: 16px;
+        line-height: 25px;
+    }
+
+    .delete-btn:hover {
+        background-color: rgba(0, 0, 0, 0.7);
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+<div class="content-area">
+
+            1、减少房号，延长使用期限
+ <div class="border p-3 rounded">
+            <form>
+                <div class="row mb-3 px-3">
+                    <!-- 公司id 表单项 -->
+                    <div class="col-auto d-flex align-items-center">
+                        <div class="form-group w-100">
+                            <label for="code" class="form-label me-2">公司id：</label>
+                            <input type="text" class="form-control fixed-width-input" id="company_id" name="company_id" value="{{ request.args.get('company_id', '') }}" placeholder="需要计算的公司id">
+                        </div>
+                    </div>
+
+                    <!-- 减少的房号数 表单项 和 计算按钮 -->
+                    <div class="col d-flex align-items-center">
+                        <div class="form-group w-100 d-flex align-items-center">
+                            <label for="room_num" class="form-label me-2">房号数：</label>
+                            <input type="text" class="form-control fixed-width-input" id="room_num" name="room_num" value="{{ request.args.get('room_num', '') }}" placeholder="需要调整的房号数">
+                            <button type="submit"  name="action" value="first" lass="btn btn-primary ms-2">计算</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+</div>
+
+<style>
+    /* 自定义样式 */
+    .fixed-width-input {
+        max-width: 150px; /* 设置输入框的最大宽度 */
+    }
+
+    .form-group {
+        display: flex;
+        align-items: center;
+        width: 100%; /* 确保表单项占据整个列宽 */
+    }
+
+    .form-group label {
+        margin-bottom: 0; /* 确保label和input在同一行内 */
+    }
+</style>
+{% endblock %}

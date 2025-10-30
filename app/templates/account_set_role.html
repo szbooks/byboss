@@ -1,0 +1,51 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+    <div class="container">
+        <div class="row mb-3">
+            <div class="col-1">用户名:</div>
+            <div class="col-5">{{ user.username }}</div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-1">姓名:</div>
+            <div class="col-5">{{ user.realname }}</div>
+        </div>
+        <!-- 处理表单 -->
+        <form action="{{ url_for('main.account_setrole', user_id=user.id) }}" method="post">
+            <div class="row mb-3">
+                <label for="role_id" class="col-1 col-form-label">请选择角色:</label>
+                <div class="col-5">
+                    <select class="form-control" id="role_id" name="role_id" required>
+                        <option value="">请选择角色</option>
+                        {% for role in roles %}
+                        <option value="{{ role.role_id }}" {% if user.role_id == role.role_id %}selected{% endif %} >{{ role.role_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">提交</button>
+                    <a href="{{ url_for('main.accounts') }}" class="btn btn-secondary">取消</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var rejectButton = document.getElementById('reject-button');
+            var completeButton = document.getElementById('complete-button');
+            var todoRemark = document.getElementById('todo_remark');
+
+            rejectButton.addEventListener('click', function() {
+                todoRemark.setAttribute('required', '');
+            });
+
+            completeButton.addEventListener('click', function() {
+                todoRemark.removeAttribute('required');
+            });
+        });
+    </script>
+
+{% endblock %}

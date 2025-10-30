@@ -1,0 +1,85 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+    <div class="content-area">
+        <!-- 顶部操作栏 -->
+        <div class="d-flex align-items-center flex-wrap mb-3">
+            <form id="company-form" action="{{ url_for('main.bonus_search') }}" method="get" class="d-flex align-items-center mb-2 flex-grow-0">
+                <input type="text" class="input-group-text me-2" name="code" placeholder="输入邀请码" value="{{ request.args.get('code', '') }}">
+                <input type="text" class="input-group-text me-2" name="userid" placeholder="输入邀请人的用户id" value="{{ request.args.get('userid', '') }}">
+
+                <button type="submit" class="btn btn-outline-primary fixed-width-btn">查询</button>
+
+            </form>
+
+        </div>
+
+        <div class="col-md-12">
+            <p>记录总数: {{ total_count }}</p>
+        </div>
+        <table class="table table-striped table-bordered table-light table-hover">
+            <thead>
+            <tr>
+                <th>公司id</th>
+                <th>用户id</th>
+                <th>用户姓名</th>
+                <th>self_code</th>
+                <th>from_code</th>
+                <th>首次付费金额</th>
+                <th>获得奖励金（用户id）</th>
+
+
+            </tr>
+            </thead>
+            <tbody>
+            {% for row in results %}
+                <tr>
+                    <td>{{ row.company_id }}</td>
+{#                    <td>{% if row.user_id %}{{ row.user_id }}{% else %}{{ "" }}{% endif %}</td>#}
+                    <td>
+                        {% if (row.user_id|replace(" ", "")) == (userid_to_check|replace(" ", "")) %}
+                            <span style="color: red;">{{ row.user_id }}</span>
+                        {% else %}
+                            {{ row.user_id }}
+                        {% endif %}
+                    </td>
+
+
+
+
+
+
+                    <td>{% if row.user_name %}{{ row.user_name }}{% else %}{{ "" }}{% endif %}</td>
+
+                    <td>
+                        {% if (row.self_code|replace(" ", "")) == (code_to_check|replace(" ", "")) %}
+                            <span style="color: red;">{{ row.self_code }}</span>
+                        {% else %}
+                            {{ row.self_code }}
+                        {% endif %}
+                    </td>
+                    <td>{% if row.from_code %}{{ row.from_code }}{% else %}{{ "" }}{% endif %}</td>
+                    <td>{% if row.first_pay %}{{ row.first_pay }}{% else %}{{ "" }}{% endif %}</td>
+                    <td>{% if row.bonus %}{{ row.bonus }}{% else %}{{ "" }}{% endif %}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <!-- 底部分页控件 -->
+        <nav aria-label="Page navigation" class="d-flex justify-content-end pagination-container">
+            <ul class="pagination pagination-sm">
+                {% for page in page_numbers %}
+                    {% if page == '...' %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                    {% else %}
+                        <li class="page-item {% if page == current_page %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('main.bonus_search', page=page) }}">{{ page }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </nav>
+
+    </div>
+{% endblock %}
+

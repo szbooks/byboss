@@ -1,0 +1,129 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+    <div class="container">
+        <form action="{{ url_for('main.do_account_deletion', id=resultid.id) }}" method="post">
+            {% if resultid.status==2 or resultid.status==3 %}
+                <div class="row mb-3">
+                    <div class="col-1">公司ID:</div>
+                    <div class="col-5">{{ resultid.company_id }}</div>
+                </div>
+
+                <div class="row mb-3">
+            <div class="col-1">联系电话:</div>
+            <div class="col-5">{{ resultid.phone }}</div>
+        </div>
+
+                <div class="row mb-3">
+                <div class="col-1">申请事项:</div>
+                <div class="col-5">{{ resultid.content }}</div>
+            </div>
+
+                <div class="row mb-3">
+                <div class="col-1">处理意见:</div>
+                <div class="col-5">{{ resultid.final_plan|default('已处理', true) }}</div>
+            </div>
+
+            {% else %}
+                <div class="row mb-3">
+                    <label for="phone" class="col-sm-1 col-form-label">公司id：</label>
+                    <div class="col-sm-5">
+                        <input type="text" class="form-control" id="company_id" value="{{ resultid.company_id|default('', true) }}" name="company_id" required>
+                    </div>
+                </div>
+
+                <!-- 联系电话 -->
+            <div class="row mb-3">
+                <label for="phone" class="col-sm-1 col-form-label">联系电话：</label>
+                <div class="col-sm-5">
+                    <input type="tel" class="form-control" id="phone" name="phone" value="{{ resultid.phone|default('', true) }}" pattern="(\+?\d[- .]*){7,13}">
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-1">申请事项:</div>
+                <div class="col-5">{{ resultid.content }}</div>
+            </div>
+            <div class="row mb-3">
+                <label for="todo_remark" class="col-1 col-form-label">处理意见:</label>
+                <div class="col-5">
+                    <textarea class="form-control" id="final_plan" name="final_plan" style="height: 150px">{{ resultid.final_plan|default('已处理', true) }}</textarea>
+                </div>
+            </div>
+
+            {% endif %}
+
+
+
+
+
+
+
+{#            <div class="row mb-3">#}
+{#                <div class="col-1">申请事项:</div>#}
+{#                <div class="col-5">{{ special.content }}</div>#}
+{#            </div>#}
+{##}
+{##}
+{#            <div class="row mb-3">#}
+{#                <label for="todo_remark" class="col-1 col-form-label">处理意见:</label>#}
+{#                <div class="col-5">#}
+{#                    <textarea class="form-control" id="final_plan" name="final_plan" style="height: 150px">{{ special.final_plan|default('已处理', true) }}</textarea>#}
+{#                </div>#}
+{#            </div>#}
+
+            <div class="row mb-3">
+                <label for="todo_remark" class="col-1 col-form-label">备注:</label>
+                <div class="col-5">
+                    <textarea class="form-control" id="todo_remark" name="todo_remark" style="height: 150px">{{ resultid.todo_remark|default('已注销', true) }}</textarea>
+                </div>
+            </div>
+
+
+            <div class="row">
+                <div class="col-12">
+                    {#                {{ discount.status }}#}
+{#                    {% if special.status==4 %}#}
+{#                        <button type="submit" name="action" value="communication_2nd" class="btn btn-success me-2" id="communication_2nd-button">提交处理</button>#}
+                        {#                    {% elif special.status==1 %}#}
+                        {#                        <button type="submit" name="action" value="communicated" class="btn btn-success me-2" id="communicated-button">提交处理</button>#}
+                    {% if resultid.status==1 or resultid.status==5 %}
+                        <button type="submit" name="action" value="completed" class="btn btn-success me-2" id="communicated-button">提交处理</button>
+                        <button type="submit" name="action" value="save" class="btn btn-outline-primary me-2" id="save-button">保存草稿</button>
+                    {% endif %}
+
+                    {% if resultid.status==2 or resultid.status==3 %}
+                        <button type="submit" name="action" value="save_remark" class="btn btn-outline-primary me-2" id="save-button">保存备注</button>
+                    {% endif %}
+
+                    <!-- 只是保存按钮 -->
+
+                    {% if resultid.status==1 or resultid.status==4 %}
+                        <button type="submit" name="action" value="reject" class="btn btn-danger me-2" id="reject-button">拒绝处理</button>
+                    {% endif %}
+                    {#                    {% if special.status == 1 %}#}
+                    {#                        <button type="submit" name="action" value="process" class="btn btn-outline-primary me-2" id="process-button">提交books处理</button>#}
+                    {#                    {% endif %}#}
+                    <a href="{{ url_for('main.account_deletion') }}" class="btn btn-secondary">取消</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var rejectButton = document.getElementById('reject-button');
+            var completeButton = document.getElementById('complete-button');
+            var todoRemark = document.getElementById('todo_remark');
+
+            rejectButton.addEventListener('click', function () {
+                todoRemark.setAttribute('required', '');
+            });
+
+            completeButton.addEventListener('click', function () {
+                todoRemark.removeAttribute('required');
+            });
+        });
+    </script>
+
+{% endblock %}

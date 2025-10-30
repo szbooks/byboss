@@ -1,0 +1,216 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+{#    <script src="https://cdn.staticfile.org/twitter-bootstrap/5.3.0-alpha1/js/bootstrap.bundle.min.js"></script>#}
+    <div class="content-area">
+        <!-- 顶部操作栏 -->
+        <div class="d-flex align-items-center flex-wrap mb-3">
+            <!-- 操作按钮 -->
+        </div>
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if current_tab == 'home' %}active{% endif %}" id="home-tab" data-bs-toggle="tab" data-bs-target="#home-tab-pane" type="button" role="tab"
+                        aria-controls="home-tab-pane" aria-selected="{% if current_tab == 'home' %}true{% else %}false{% endif %}">日报
+                </button>
+            </li>
+
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if current_tab == 'profile' %}active{% endif %}" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile-tab-pane" type="button" role="tab"
+                        aria-controls="profile-tab-pane" aria-selected="{% if current_tab == 'profile' %}true{% else %}false{% endif %}">周报
+                </button>
+            </li>
+        </ul>
+
+        <div class="alert alert-info mb-3">
+            记录总数: <span class="stat-value">{{ count_results[0]['stat_count'] | int }}</span> |
+            已认领数：<span class="stat-value">{{ count_results[0]['stat_claim'] | int }}</span> |
+            初步沟通 <span class="stat-value">{{ count_results[0]['stat_step_one'] | int }}</span> |
+            直连 <span class="stat-value">{{ count_results[0]['stat_step_three'] | int }}</span> |
+            转售后 <span class="stat-value">{{ count_results[0]['stat_step_four'] | int }}</span> |
+            放弃 <span class="stat-value">{{ count_results[0]['stat_step_six'] | int }}</span>
+        </div>
+
+        <div class="tab-content" id="myTabContent">
+            <div class="tab-pane fade show active" id="home-tab-pane" role="tabpanel" aria-labelledby="home-tab" tabindex="0">
+               <table class="table table-striped table-bordered table-light table-hover">
+    <thead>
+        <tr>
+            <th>日期</th>
+            <th>人员</th>
+            <th>新增认领数</th>
+            <th>新增转直连</th>
+            <th>新增转售后</th>
+            <th>新增放弃</th>
+
+            <!-- 总认领数：添加左侧边框 -->
+            <th>总认领数</th>
+            <th>总初步沟通数</th>
+            <th>总直连数</th>
+            <th>总转售后数</th>
+            <th>总放弃数</th>
+            <th>总复盘</th>
+            <th>总重点跟踪</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% set prev_date = namespace(value='') %}
+        {% for item in daily_data %}
+            {% set current_date = item.data.stat_day %}
+
+            {# 插入按日期分割的间隔行 #}
+            {% if loop.index != 1 and current_date != prev_date.value %}
+                <tr class="date-separator">
+                    <td colspan="13" style="
+                        text-align: center;
+                        background-color: #f0f0f0;
+                        color: #a0a0a0;
+                        padding: 8px;
+                        font-size: 0.9em;
+                        border-top: 1px solid #e0e0e0;
+                        border-bottom: 1px solid #e0e0e0;">
+                    </td>
+                </tr>
+            {% endif %}
+
+            <tr>
+                {% if item.rowspan > 0 %}
+                    <td rowspan="{{ item.rowspan }}">{{ item.data.stat_day }}</td>
+                {% endif %}
+                <td>{{ item.data.name or '' }}</td>
+                <td>{{ item.data.single_claim or 0 }}</td>
+                <td>{{ item.data.single_step_three or 0 }}</td>
+                <td>{{ item.data.single_step_four or 0 }}</td>
+                <td>{{ item.data.single_step_six or 0 }}</td>
+
+                <!-- 数据单元格也添加相同边框 -->
+                <td style="border-left: 2px solid #c4c8cb;">{{ item.data.claim or 0 }}</td>
+                <td>{{ item.data.step_one or 0 }}</td>
+                <td>{{ item.data.step_three or 0 }}</td>
+                <td>{{ item.data.step_four or 0 }}</td>
+                <td>{{ item.data.step_six or 0 }}</td>
+                <td>{{ item.data.tag_replay or 0 }}</td>
+                <td>{{ item.data.tag_track or 0 }}</td>
+            </tr>
+            {% set prev_date.value = current_date %}
+        {% endfor %}
+    </tbody>
+</table>
+
+                <!-- 分页 -->
+                <nav aria-label="Page navigation" class="d-flex justify-content-end pagination-container">
+                    <ul class="pagination pagination-sm">
+                        <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                            <a class="page-link" href="{{ url_for('main.stat_presales', page=page-1, tab='home') }}">上一页</a>
+                        </li>
+                        {% for num in range(1, total_pages + 1) %}
+                            <li class="page-item {% if num == page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('main.stat_presales', page=num, tab='home') }}">{{ num }}</a>
+                            </li>
+                        {% endfor %}
+                        <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                            <a class="page-link" href="{{ url_for('main.stat_presales', page=page+1, tab='home') }}">下一页</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+
+
+            <div class="tab-pane fade" id="profile-tab-pane" role="tabpanel" aria-labelledby="profile-tab" tabindex="0">
+                <table class="table table-striped table-bordered table-light table-hover">
+                    <thead>
+                    <tr>
+                        <th>周期</th>
+                        <th>人员
+                        <th>新增认领数</th>
+                        <th>新增转直连</th>
+                        <th>新增转售后</th>
+                        <th>新增放弃</th>
+                        <th>总认领数</th>
+                        <th>总初步沟通数</th>
+                        <th>总直连数</th>
+                        <th>总转售后数</th>
+                        <th>总放弃数</th>
+                        <th>总复盘</th>
+                        <th>总重点跟踪</th>
+
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for item in weekly_data %}
+                        {% set current_week = item.data.week %}
+
+            {# 插入按日期分割的间隔行 #}
+            {% if loop.index != 1 and current_week != prev_date.value %}
+                <tr class="date-separator">
+                    <td colspan="13" style="
+                        text-align: center;
+                        background-color: #f0f0f0;
+                        color: #a0a0a0;
+                        padding: 8px;
+                        font-size: 0.9em;
+                        border-top: 1px solid #e0e0e0;
+                        border-bottom: 1px solid #e0e0e0;">
+                    </td>
+                </tr>
+            {% endif %}
+                        <tr>
+                            {% if item.rowspan > 0 %}
+                                <td style="max-width: 100px" rowspan="{{ item.rowspan }}">{{ item.data.week }}</td>
+                            {% endif %}
+                            <td>{{ item.data.name or '' }}</td>
+                            <td>{{ item.data.single_claim or 0 }}</td>
+                            <td>{{ item.data.single_step_three or 0 }}</td>
+                            <td>{{ item.data.single_step_four or 0 }}</td>
+                            <td>{{ item.data.single_step_six or 0 }}</td>
+                        <!-- 数据单元格也添加相同边框 -->
+                <td style="border-left: 2px solid #c4c8cb;">{{ item.data.claim or 0 }}</td>
+{#                            <td>{{ item.data.claim or 0 }}</td>#}
+                            <td>{{ item.data.step_one or 0 }}</td>
+                            <td>{{ item.data.step_three or 0 }}</td>
+                            <td>{{ item.data.step_four or 0 }}</td>
+                            <td>{{ item.data.step_six or 0 }}</td>
+                            <td>{{ item.data.tag_replay or 0 }}</td>
+                            <td>{{ item.data.tag_track or 0 }}</td>
+
+                        </tr>
+                        {% set prev_date.value = current_week %}
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <style>
+        /* 假设你的导航有一个特定的ID或类名，例如#myTab */
+        #myTab .nav-link {
+            width: 100px; /* 或任何你需要的宽度 */
+            text-align: center; /* 如果需要的话，让文本居中 */
+        }
+
+
+        #myTabContent {
+        {#margin-left: 6px; /* 如果需要的话，让文本居中 */#} margin-top: 5px;
+        }
+
+        /* 新增：确保日期列的内容居中 */
+        #home-tab-pane table tbody tr td:first-child,
+        #profile-tab-pane table tbody tr td:first-child {
+            text-align: center;
+            vertical-align: middle; /* 如果需要垂直居中的话 */
+        }
+
+        .alert-info {
+            margin-left: 5px;
+            margin-top: 10px;
+        }
+
+        .stat-value {
+            color: black;
+            font-weight: normal;
+        }
+
+
+
+    </style>
+
+{% endblock %}

@@ -1,0 +1,238 @@
+html {
+    font-size: 95%; /* 等于16px */
+
+
+}
+
+
+
+
+/* 顶部导航栏样式 */
+.navbar {
+    background-color: #007bff; /* 蓝色背景 */
+    color: white;
+}
+
+.navbar .navbar-brand,
+.navbar .nav-link {
+    color: white;
+}
+
+.sidebar-module {
+    margin-bottom: 0.5rem;  /* 底部间隔 */
+    padding: 0.5rem;  /* 内部填充 */
+    border-radius: 5px;  /* 轻微的圆角 */
+}
+
+.sidebar-module h3 {
+    font-size: 1.1rem;    /* 增大字体大小 */
+    font-weight: bold;    /* 加粗字体 */
+    padding: 0.5rem 1rem; /* 上下左右填充 */
+    margin-bottom: 0.5rem;/* 标题下的边距 */
+    background-color: #e9ecef; /* 背景色 */
+    border-radius: 5px;   /* 圆角 */
+    color: #4b4c4c;       /* 字体颜色 */
+    border-bottom: 2px solid #ddd; /* 底部边框 */
+}
+
+.nav-link {
+    /* 链接样式，确保与标题样式协调 */
+    margin-left: 0.5rem;  /* 左侧填充 */
+    padding: 0.5rem 0;    /* 上下填充 */
+}
+
+.nav-link.active {
+    /* 激活链接样式 */
+    background-color: #d1e2fc; /* 激活链接背景颜色 */
+    color: #4b4c4c; /* 激活链接文字颜色 */
+    border-radius: 3px; /* 轻微圆角 */
+}
+
+.content-area {
+    /*max-height: 1200px;*/
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 56px); /* 减去导航栏高度 */
+    margin-left: 5px; /* 根据侧边栏宽度调整 */
+    margin-right: 5px;
+    /*overflow-y: auto; !* 添加垂直滚动条，如果内容超过容器高度 *!*/
+    overflow-x: auto; /* 添加横向滚动条，如果内容超出容器宽度 */
+    /*width: calc(100% - 280px - 800px);*/
+}
+
+
+/* 侧边栏样式 */
+.sidebar {
+    height: calc(100vh - 56px); /* 减去导航栏高度 */
+    position: sticky;
+    top: 56px; /* 导航栏高度 */
+    width: 280px;
+    left: 0;
+    background-color: #f8f9fa; /* 浅灰色背景 */
+    border-right: 1px solid #ddd; /* 右边框 */
+    padding: 20px;
+    overflow-y: auto;
+}
+
+
+/* 内容区域样式 */
+.content-left {
+    float: left;
+}
+
+.status-pending {
+    color: red;
+}
+
+.btn.disabled, .btn:disabled, fieldset:disabled .btn {
+    background-color: #8b8d90; /* 自定义背景色 */
+    border-color: #8b8d90; /* 自定义边框颜色 */
+    /* 其他自定义属性 */
+}
+
+.form-select {
+    width: auto;
+}
+
+/* 表格边框样式 */
+.table {
+    border-collapse: collapse; /* 确保边框不重叠 */
+
+
+}
+
+.table th,
+.table td {
+    text-align: center; /* 标题居中对齐 */
+
+}
+
+/* 表格标题栏样式 */
+.table thead th {
+    background-color: #aaccff; /* 背景 */
+    text-align: center; /* 标题居中对齐 */
+    box-shadow: 0 2px 4px rgba(0,0,0,.1); /* 添加轻微阴影 */
+
+}
+
+/* 分页栏样式 */
+.pagination-container {
+    margin-top: 20px;  /* 添加顶部间距 */
+}
+
+/* form的必填项提示 */
+.text-danger {
+    color: #dc3545; /* 或其他您希望的颜色 */
+}
+
+/* 显示超长文字的样式 */
+.ellipsis {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block; /* 确保单元格内容是块级元素 */
+}
+
+/* 面包屑栏样式 */
+.breadcrumb {
+    padding-top: 15px;
+    padding-bottom: 10px;
+    font-size: large;
+}
+
+ 响应式布局
+@media (min-width: 768px) {
+  .content-area {
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+    }
+
+@media (min-width: 992px) {
+  .content-area {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
+
+@media (min-width: 1920px) {
+  .content-area {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
+
+/* 页脚样式 */
+.footer {
+    background-color: #f8f9fa;
+    text-align: center;
+    padding: 10px 0;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+}
+
+
+/* 让表格头固定在页面顶部 */
+th {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background-color: white; /* 可选：使表格头背景透明 */
+}
+
+
+tr {
+    min-height: 100px !important; /* 确保此样式优先 */
+}
+
+
+  /* 控制按钮样式 */
+  #sidebarToggleButton {
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     background-color: transparent;
+     border: none;
+     cursor: pointer;
+     outline: none;
+     padding: 0; /* 移除内边距 */
+     /*margin-left: 145px;*/
+   }
+
+   /* 图像样式 */
+   #sidebarToggleButton img {
+     width: 24px; /* 图像宽度 */
+     height: auto; /* 保持图像比例 */
+   }
+
+   /* 默认显示侧边栏 */
+.sidebar {
+    display: none; /* 初始状态为显示 */
+}
+
+
+/*        !* 固定表头样式 *!*/
+/*#company-table {*/
+/*    position: relative;*/
+/*    border-collapse: separate; !* 必须设置为separate *!*/
+/*    border-spacing: 0;*/
+/*}*/
+
+/*#company-table thead th {*/
+/*    position: sticky;*/
+/*    top: 0;*/
+/*    z-index: 100;*/
+/*    background-color: #aaccff !important; !* 与您现有的标题背景色一致 *!*/
+/*    box-shadow: 0 2px 4px rgba(0,0,0,.1);*/
+/*}*/
+
+/*#company-table tbody {*/
+/*    position: relative;*/
+/*}*/
+
+/*!* 确保内容区域有滚动 *!*/
+/*.content-area {*/
+/*    overflow-y: auto;*/
+/*    height: calc(100vh - 150px); !* 根据实际布局调整 *!*/
+/*}*/

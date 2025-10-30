@@ -1,0 +1,48 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+    <div class="container">
+        <form action="{{ url_for('main.add_discount') }}" method="post" id="discountForm">
+            <!-- 公司ID -->
+            <div class="row mb-3">
+                <label for="company_id" class="col-sm-1 col-form-label">公司ID：<span class="text-danger">*</span></label>
+                <div class="col-sm-5">
+                    <input type="number" class="form-control" id="company_id" name="company_id"  required>
+                    <span style="color: rosybrown">只允许输入数字哦</span>
+                </div>
+            </div>
+
+             <div class="row mb-3">
+                <label for="phone" class="col-sm-1 col-form-label">联系方式：<span class="text-danger">*</span></label>
+                <div class="col-sm-5">
+                    <input type="tel" class="form-control" id="phone" name="phone"  required>
+                </div>
+            </div>
+
+            <!-- 备注 -->
+            <div class="row mb-3">
+                <label for="remark" class="col-sm-1 col-form-label">备注：</label>
+                <div class="col-sm-5">
+                    <textarea class="form-control" id="remark" name="remark" style="height: 150px"></textarea>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-sm-10 offset-sm-1">
+                    <button type="submit" class="btn btn-primary me-2">提交</button>
+                    <a href="{{ url_for('main.discounts') }}" class="btn btn-secondary">取消</a>
+                </div>
+            </div>
+        </form>
+
+
+
+    </div>
+
+    <script>
+    document.getElementById('discountForm').addEventListener('submit', function() {
+        // 禁用提交按钮
+        document.querySelector('button[type="submit"]').disabled = true;
+    });
+</script>
+{% endblock %}

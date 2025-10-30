@@ -1,0 +1,40 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+    <div class="container">
+        <form action="{{ url_for('main.edit_special', id=special.id) }}" method="post">
+
+                <div class="row mb-3">
+                    <label for="phone" class="col-sm-1 col-form-label">公司id：</label>
+                    <div class="col-sm-5">
+                        <input type="text" class="form-control" id="company_id" value="{{ special.company_id|default('', true) }}" name="company_id" required>
+                    </div>
+                </div>
+
+                <!-- 联系电话 -->
+            <div class="row mb-3">
+                <label for="phone" class="col-sm-1 col-form-label">联系电话：</label>
+                <div class="col-sm-5">
+                    <input type="tel" class="form-control" id="phone" name="phone" value="{{ special.phone|default('', true) }}" pattern="(\+?\d[- .]*){7,13}">
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label for="content" class="col-sm-1 col-form-label">申请事项：</label>
+                <div class="col-sm-5">
+                    <textarea class="form-control" id="content" name="content" style="height: 150px">{{ special.content|default('', true) }}</textarea>
+                </div>
+            </div>
+
+
+
+            <div class="row">
+                <div class="col-12">
+                        <button type="submit" name="action" value="completed" class="btn btn-success me-2" id="communicated-button">保存</button>
+                        <a href="{{ url_for('main.special_apply') }}" class="btn btn-secondary">取消</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+{% endblock %}

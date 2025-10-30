@@ -1,0 +1,520 @@
+import datetime
+from contextlib import closing
+
+from flask import jsonify
+
+from app.db import get_db_connection, get_db_connection_read
+from datetime import datetime
+
+from app.model_company import single_company_update
+from app.utils import get_username, is_integer, get_username_byrole
+
+
+
+
+# 售前跟进列表
+def get_presales_progress(company_id=None, account_status=None, operator=None, btnradio=None, task_status=None, current_user_id=None, date_select=None, persaler=None,search_api=None,operating_sub=None):
+    # 计算起始记录
+    page_query_params = ""
+    new_query_params = ""
+    current_time = datetime.now()
+    formatted_time = current_time.strftime("%Y-%m-%d %H:%M")
+    formatted_data = current_time.strftime("%Y-%m-%d")
+    data_search="";
+
+    # 创建数据库连接
+    conn = get_db_connection()
+
+    try:
+        with (conn.cursor() as cursor):
+
+            get_scale_sql = "select persaler_list from t_account where id=%s"
+            cursor.execute(get_scale_sql, (current_user_id,))
+            scale_result = cursor.fetchone()
+            persaler_list_value = scale_result['persaler_list'] if scale_result else None
+            if persaler_list_value is None:
+                persaler_list_value = "all"
+
+                # 获取处理人员
+            presaler_sql = "select a.username,a.realname,pp.operator_id from t_presales_progress pp join t_account a on pp.operator_id=a.id GROUP BY pp.operator_id"
+            cursor.execute(presaler_sql)
+            operator_name = cursor.fetchall()
+
+            # 获取售前人员
+            persaler_names = get_username_byrole(4)
+
+            #所属运营群
+
+
+            # 构建 SQL 查询
+            sql_caccount_status = ["1=1"]
+            sql_conditions_query = ["1=1"]
+            sql_conditions = ["1=1"]
+
+            # 添加状态过滤条件
+
+            if company_id not in (None, ''):
+                sql_conditions.append("c.company_id = %s")
+                sql_conditions_query.append("company_id = %s")
+
+                # 添加状态过滤条件
+            if account_status not in (None, ''):
+                if account_status=="3":
+                    sql_conditions.append("(c.account_state = %s or c.account_state = '4')")
+                    sql_conditions_query.append("(account_state = %s or account_state = '4')")
+                else:
+                    sql_conditions.append("c.account_state = %s")
+                    sql_conditions_query.append("account_state = %s")
+
+            if operator not in (None, ''):
+                sql_conditions.append("a.operator_id = %s")
+                sql_conditions_query.append("operator_id = %s")
+
+            if persaler not in (None, '',0):
+                sql_conditions.append("a.presales_id = %s")
+                sql_conditions_query.append("presales_id = %s")
+            elif persaler==0:
+                sql_conditions.append("a.presales_id is null")
+                sql_conditions_query.append("presales_id is null")
+                persaler = None
+
+            if btnradio == "w" or persaler_list_value == "w":
+                sql_conditions.append("c.room_count <30 and c.room_count >=10")
+                sql_conditions_query.append("room_count <30 and room_count >=10")
+
+            if btnradio == "s" or persaler_list_value == "s":
+                sql_conditions.append("c.room_count >=30")
+                sql_conditions_query.append("room_count >=30")
+
+            if btnradio == "o" or persaler_list_value == "o":
+                sql_conditions.append("(c.room_count <10  or c.room_count is null)")
+                sql_conditions_query.append("(room_count <10  or room_count is null)")
+
+            if task_status not in (None, ''):
+                sql_conditions.append("a.progress_state = %s")
+                sql_conditions_query.append("progress_state = %s")
+
+            if date_select not in (None, ''):
+                start_date, end_date = date_select.split(' - ')
+                sql_conditions.append("left(a.create_data,10) between '%s' and '%s'" % (start_date, end_date))
+                sql_conditions_query.append("left(create_data,10) between '%s' and '%s'" % (start_date, end_date))
+                data_search=date_select
+            else:
+                data_search = ""
+
+            if search_api not in (None, ''):
+                sql_conditions.append("c.api_config is not null")
+                sql_conditions_query.append("api_config is not null")
+
+            if operating_sub not in (None, ''):
+                # sql_conditions.append("c.api_config is not null")
+                sql_conditions_query.append("operating_sub_phone =%s or operating_sub_name =%s")
+
+            # 构建最终的 SQL 查询
+            sql = '''
+                    select * from (
+select a.taskid,a.company_id,left(c.active_time,10)active_time,c.end_data,c.room_count,c.account_state,c.from_code,a.progress_state,left(a.create_data,10)create_data,
+(select username from t_account where id=a.operator_id)operator,
+(select username from t_account where id=a.presales_id)presales,
+(select name from t_coop_ex where code=c.source)coo_name,
+(select phone from t_operating_sub where FIND_IN_SET(a.company_id, `company_id`) > 0)operating_sub_phone,
+(select name from t_operating_sub where FIND_IN_SET(a.company_id, `company_id`) > 0)operating_sub_name,
+(select channel from t_api_channel where address=c.api_config)api_channel,c.api_config,c.global_sync,a.presales_id,
+a.remark,a.step_one,a.step_two,a.step_three,a.step_four,a.step_five,a.step_six,c.affiliated_company,yetai_remark,xin_remark,c.company_name,a.contact,c.platform_count,c.regi_infor
+from t_presales_progress a LEFT JOIN t_company c on a.company_id=c.company_id)a''' + " WHERE " + " AND ".join(sql_conditions_query) + "  ORDER BY create_data desc"
+
+            print("今天的时间："+formatted_data)
+            # 获取总记录数
+            total_count_sql = '''
+                    select count(*)总数 from t_presales_progress a LEFT JOIN t_company c on a.company_id=c.company_id''' + " WHERE " + " AND ".join(sql_conditions)
+
+            # 新记录
+            new_count_sql = '''
+                    select count(*)总数 from t_presales_progress a LEFT JOIN t_company c on a.company_id=c.company_id''' + " WHERE " + " AND ".join(
+                sql_conditions) + " and left(create_data,10)=\"" + formatted_data + "\""
+
+            # 未认领
+            unclaimed_count_sql = '''
+                                select count(*)总数 from t_presales_progress a LEFT JOIN t_company c on a.company_id=c.company_id''' + " WHERE " + " AND ".join(
+                sql_conditions) + " and  presales_id is null"
+
+            # 初步沟通
+            step_one_count_sql = '''
+                                            select count(*)总数 from t_presales_progress a LEFT JOIN t_company c on a.company_id=c.company_id''' + " WHERE " + " AND ".join(
+                sql_conditions) + " and  progress_state=\"1\""
+
+            # 直连
+            step_two_count_sql = '''
+                                                        select count(*)总数 from t_presales_progress a LEFT JOIN t_company c on a.company_id=c.company_id''' + " WHERE " + " AND ".join(
+                sql_conditions) + " and  progress_state=\"3\""
+
+            # 转售后
+            step_four_count_sql = '''
+                                                                    select count(*)总数 from t_presales_progress a LEFT JOIN t_company c on a.company_id=c.company_id''' + " WHERE " + " AND ".join(
+                sql_conditions) + " and  progress_state=\"4\""
+
+            # 放弃
+            step_six_count_sql = '''
+                                                                                select count(*)总数 from t_presales_progress a LEFT JOIN t_company c on a.company_id=c.company_id''' + " WHERE " + " AND ".join(
+                sql_conditions) + " and  progress_state=\"6\""
+
+            print(sql)
+
+            if  operating_sub not in (None, ''):
+                query_params_operating_sub = tuple(param for param in [company_id, account_status, operator, persaler, task_status, operating_sub, operating_sub] if param is not None and param != '')
+
+                cursor.execute(sql, query_params_operating_sub)
+                results = cursor.fetchall()
+                total_count=""
+                new_count=""
+                unclaimed_count=""
+                step_one_count=""
+                step_two_count=""
+                step_four_count=""
+                step_six_count=""
+            else:
+
+            # 有查询条件用
+                if company_id not in (None, '') or account_status not in (None, '') or operator not in (None, '') or task_status not in (None, '') or persaler not in (None, '',0):
+                    query_params = tuple(
+                        param for param in [company_id, account_status, operator,  persaler,task_status,operating_sub,operating_sub]
+                        if param is not None and param != '')
+
+                    cursor.execute(sql, query_params)
+                    results = cursor.fetchall()
+
+                    cursor.execute(total_count_sql, query_params)
+                    total_count = cursor.fetchone()['总数']
+
+                    cursor.execute(new_count_sql, query_params)
+                    new_count = cursor.fetchone()['总数']
+
+                    cursor.execute(unclaimed_count_sql, query_params)
+                    unclaimed_count = cursor.fetchone()['总数']
+
+                    cursor.execute(step_one_count_sql,query_params)
+                    step_one_count = cursor.fetchone()['总数']
+
+                    cursor.execute(step_two_count_sql,query_params)
+                    step_two_count = cursor.fetchone()['总数']
+
+                    cursor.execute(step_four_count_sql, query_params)
+                    step_four_count = cursor.fetchone()['总数']
+
+                    cursor.execute(step_six_count_sql, query_params)
+                    step_six_count = cursor.fetchone()['总数']
+
+                else:
+                    cursor.execute(sql)
+                    results = cursor.fetchall()
+
+                    cursor.execute(total_count_sql)
+                    total_count = cursor.fetchone()['总数']
+
+                    cursor.execute(new_count_sql)
+                    new_count = cursor.fetchone()['总数']
+
+                    cursor.execute(unclaimed_count_sql)
+                    unclaimed_count = cursor.fetchone()['总数']
+
+                    cursor.execute(step_one_count_sql)
+                    step_one_count = cursor.fetchone()['总数']
+
+                    cursor.execute(step_two_count_sql)
+                    step_two_count = cursor.fetchone()['总数']
+
+                    cursor.execute(step_four_count_sql)
+                    step_four_count = cursor.fetchone()['总数']
+
+                    cursor.execute(step_six_count_sql)
+                    step_six_count = cursor.fetchone()['总数']
+
+            return results, total_count, new_count, persaler_list_value, operator_name, persaler_names,unclaimed_count,step_one_count,step_two_count,data_search,step_four_count,step_six_count
+
+    except Exception as e:
+        print(f"Error get_presales_progress: {e}")
+    finally:
+        conn.close()
+
+
+# 读取数据
+def get_presales_progress_id(id):
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            sql = '''
+                SELECT * FROM t_presales_progress
+                WHERE taskid = %s
+            '''
+            cursor.execute(sql, id)
+            result = cursor.fetchone()
+            return result
+    except Exception as e:
+        print(f"Error get_presales_progress_id: {e}")
+    finally:
+        conn.close()
+
+
+def get_presales_progress_id(id):
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            sql = '''
+                SELECT * FROM t_presales_progress
+                WHERE taskid = %s
+            '''
+            cursor.execute(sql, id)
+            result = cursor.fetchone()
+            return result
+    except Exception as e:
+        print(f"Error get_presales_progress_id: {e}")
+    finally:
+        conn.close()
+
+
+def update_contact(company_id=None, contact=None, id=None, yetai_remark=None, xin_remark=None):
+    conn = get_db_connection();
+
+    try:
+        with conn.cursor() as cursor:
+            sql = '''
+                      select taskid from t_presales_progress where company_id=%s      
+                        '''
+            cursor.execute(sql, (company_id))
+            result = cursor.fetchone()
+            # print(result['taskid'])
+            # print(id)
+            if result is not None:
+                if result['taskid']!=int(id):
+                    sql = '''
+                           DELETE from t_presales_progress where taskid=%s  
+                                            '''
+                    cursor.execute(sql, (result['taskid']))
+                    conn.commit()
+
+
+
+            sql = '''
+                UPDATE `dh_support`.`t_presales_progress` 
+                SET `contact`=%s,company_id=%s,yetai_remark=%s,xin_remark=%s
+                WHERE `taskid`=%s
+            '''
+            cursor.execute(sql, (contact, company_id, yetai_remark, xin_remark, id))
+            conn.commit()
+    except Exception as e:
+        print(f"Error update_contact: {e}")
+    finally:
+        conn.close()
+
+
+# 认领
+def update_claim_presales(presales_id, current_user_id):
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            sql = '''
+                 UPDATE `dh_support`.`t_presales_progress` SET `presales_id`=%s WHERE `taskid`=%s;
+             '''
+            cursor.execute(sql, (current_user_id, presales_id))
+            conn.commit()
+            return "success"
+    except Exception as e:
+        print(f"Error in update_claim_presales: {e}")
+    finally:
+        conn.close()
+
+#批量认领
+def batch_update_claim_presales(task_ids, current_user_id):
+    # 获取数据库连接
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor() as cursor:
+            # 检查 task_ids 是否为空
+            if not task_ids:
+                print("任务 ID 列表为空")
+                return False
+
+            # 构造 IN 子句的占位符 (%s)
+            placeholders = ', '.join(['%s'] * len(task_ids))
+            sql = f'''
+                UPDATE `dh_support`.`t_presales_progress` 
+                SET `presales_id` = %s 
+                WHERE `taskid` IN ({placeholders});
+            '''
+
+            # 构造参数列表：[current_user_id, task_id1, task_id2, ...]
+            params = [current_user_id] + task_ids
+
+            # 执行 SQL 查询
+            cursor.execute(sql, params)
+
+            # 提交事务
+            conn.commit()
+            return True
+
+    except Exception as e:
+        # 捕获异常并打印错误信息
+        print(f"Error in batch_update_claim_presales: {e}")
+        conn.rollback()  # 回滚事务以确保数据一致性
+        return False
+
+    finally:
+        # 确保关闭数据库连接
+        if conn:
+            conn.close()
+
+
+
+# 更新数据
+
+def update_presales_progress(id, progress_state, remark, current_user_id):
+    conn = get_db_connection()
+    current_time = datetime.now()
+    formatted_time = current_time.strftime("%Y-%m-%d %H:%M")
+    resultid = get_username(current_user_id)
+    current_remark = ""
+
+    time_line = resultid["username"] + "<br>" + formatted_time
+    stateupadate = ""
+    new_value = ""
+    remark_add = ""
+    if progress_state == "1":
+        stateupadate = "step_one"
+    elif progress_state == "2":
+        stateupadate = "step_two"
+    elif progress_state == "3":
+        stateupadate = "step_three"
+    elif progress_state == "4":
+        stateupadate = "step_four"
+    # elif progress_state == "5":
+    #     stateupadate = "step_five"
+    # elif progress_state == "6":
+    #     stateupadate = "step_six"
+
+    # if remark not in (None, ''):
+    #     # remark_add=remark+"<br>"+"---"+"<b>"+resultid["username"]+"</b><br>"
+    #     # remark_add = remark +"\n"
+
+    try:
+        # 使用 with 语句确保游标在使用完毕后被关闭
+        with closing(conn.cursor()) as cursor:
+
+            # get_progress_state_sql="select progress_state from t_presales_progress where taskid=%s"
+            # cursor.execute(get_progress_state_sql, (id))
+            # get_progress_state_result = cursor.fetchone()
+            # old_progress_state = get_progress_state_result["progress_state"]
+            # if progress_state!=old_progress_state:
+            # sql = '''
+            #                     select remark from t_presales_progress where taskid=%s
+            #       '''
+            # cursor.execute(sql, (id))
+            # result =  cursor.fetchone()
+            # old_remark=result["remark"]
+            # new_remark = f"{old_remark}\n{remark_add}"
+            if progress_state=="5" or progress_state=="6" or progress_state=="7":
+                sql='''
+                     UPDATE t_presales_progress  SET progress_state = %s, remark = %s,updata_date = %s,operator_id=%s  WHERE taskid =%s
+                '''
+                cursor.execute(sql, (progress_state, remark, formatted_time, current_user_id, id))
+            else:
+                sql = '''
+                    UPDATE t_presales_progress  SET progress_state = %s, remark = %s,updata_date = %s,operator_id=%s,''' + stateupadate + "=%s WHERE taskid =%s"
+
+            # 在 with 语句块内执行 SQL
+                cursor.execute(sql, (progress_state, remark, formatted_time, current_user_id, time_line, id))
+
+            # 提交事务
+            conn.commit()
+            # else:
+            #     sql = '''
+            #                                 UPDATE t_presales_progress  SET current_remark = %s,updata_date = %s,operator_id=%s WHERE taskid =%s'''
+            #
+            #     # 在 with 语句块内执行 SQL
+            #     cursor.execute(sql, (remark, formatted_time, current_user_id,id))
+            #
+            #     # 提交事务
+            #     conn.commit()
+
+    except Exception as e:
+        # 回滚事务以防数据不一致
+        conn.rollback()
+        print(f"Error update_coop_ex: {e}")
+
+    finally:
+        # 关闭数据库连接
+        conn.close()
+
+
+# 售前添加新公司
+def presales_progress_add(company_id, current_user_id, remark="", contact="", yetai_remark="",xin_remark=""):
+    current_time = datetime.now()
+    formatted_time = current_time.strftime("%Y-%m-%d %H:%M")
+    mouth_time = current_time.strftime("%Y-%m")
+    resultid = get_username(current_user_id)
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            if is_integer(company_id):
+                sql = '''
+                    SELECT count(*)num FROM t_presales_progress
+                    WHERE company_id = %s
+                '''
+                cursor.execute(sql, company_id)
+                result = cursor.fetchone()
+                if result["num"] > 0:
+                    return 1
+
+            step_one = resultid["username"] + "<br>" + formatted_time
+            add_sql = '''
+                    INSERT INTO `dh_support`.`t_presales_progress` (`company_id`, `operator_id`, `progress_state`, `remark`, `step_one`,`create_data`,idx_data,contact,yetai_remark,xin_remark) VALUES (%s,%s,"1",%s,%s,%s,%s,%s,%s,%s)
+            '''
+
+            cursor.execute(add_sql, (company_id, current_user_id, remark, step_one, formatted_time, mouth_time, contact, yetai_remark, xin_remark))
+            conn.commit()
+            if is_integer(company_id):
+                with conn.cursor() as cursor:
+                    sql = '''
+                        select count(*)num from t_company where company_id =%s
+                    '''
+                    cursor.execute(sql, company_id)
+                    result = cursor.fetchone()
+                    if result["num"] > 0:
+                        return cursor.lastrowid
+                    else:
+                        single_company_update(company_id)
+
+
+
+
+    except Exception as e:
+        print(f"Error add_presales_progress: {e}")
+    finally:
+        conn.close()
+
+
+def uupdate_presales_scale_impl(current_user_id=None, selectedValue=None):
+    conn = get_db_connection()
+    persaler_list = None
+    if selectedValue == "btnradio2":
+        persaler_list = "w"
+    elif selectedValue == "btnradio3":
+        persaler_list = "s"
+    elif selectedValue == "btnradio4":
+        persaler_list = "o"
+    else:
+        persaler_list = "all"
+
+    try:
+        with conn.cursor() as cursor:
+            sql = "update t_account set persaler_list=%s where id=%s"
+            cursor.execute(sql, (persaler_list, current_user_id))
+            conn.commit()
+
+    except Exception as e:
+        print(f"Error update_scale_impl: {e}")
+        return jsonify({"success": False, "message": str(e)})  # 返回错误信息
+    finally:
+        conn.close()
+
+#

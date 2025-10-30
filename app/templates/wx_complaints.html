@@ -1,0 +1,64 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+    <div class="content-area">
+        <!-- 顶部操作栏 -->
+        <div class="d-flex align-items-center flex-wrap mb-3">
+            <!-- 操作按钮 -->
+            <a href="{{ url_for('main.get_wx_complaint') }}" class="btn btn-primary me-2 mb-2">获取投诉</a>
+            <!-- 查询表单 -->
+        </div>
+        <table class="table table-striped table-bordered table-light table-hover">
+            <thead>
+            <tr>
+                <th>公司ID</th>
+                <th>基本信息</th>
+                <th>开票金额</th>
+                <th>开票公司</th>
+                <th>税号</th>
+                <th>开户行/账号</th>
+
+            </tr>
+            </thead>
+            <tbody>
+            {% for receipt  in receipts %}
+                <tr>
+                    <td>
+                        <a href="https://www.bypms.cn/admin/user/fakelogin?companyId={{ receipt.company_id }}" target="_blank">
+                            {{ receipt.company_id }}
+                        </a>
+
+                    </td>
+
+                    <td style="max-width: 150px;">
+                        <span class="wrap-ellipsis" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ receipt.remark }}">{{ receipt.remark }}</span>
+                    </td>
+                    <td style="max-width: 100px;">{% if receipt.price %}{{ receipt.price }}{% else %}{{ "" }}{% endif %}</td>
+                    <td style="max-width: 200px;">{% if receipt.invoice_head %}{{ receipt.invoice_head }}{% else %}{{ "" }}{% endif %}</td>
+                    <td style="max-width: 200px;">{% if receipt.tax_id %}{{ receipt.tax_id }}{% else %}{{ "" }}{% endif %}</td>
+                    <td style="max-width: 230px;">{% if receipt.tax_id %}{{ receipt.khh }}{% else %}{{ "" }}{% endif %}<br>
+                        {% if receipt.tax_id %}{{ receipt.bank_account }}{% else %}{{ "" }}{% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <!-- 底部分页控件 -->
+        <nav aria-label="Page navigation" class="d-flex justify-content-end pagination-container">
+            <ul class="pagination pagination-sm">
+                <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('main.receipts', page=page-1) }}">上一页</a>
+                </li>
+                {% for num in range(1, total_pages + 1) %}
+                    <li class="page-item {% if num == page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('main.receipts', page=num) }}">{{ num }}</a>
+                    </li>
+                {% endfor %}
+                <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('main.receipts', page=page+1) }}">下一页</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+
+{% endblock %}

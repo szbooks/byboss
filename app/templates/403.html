@@ -1,0 +1,12 @@
+<!-- templates/index.html -->
+{% extends 'layout/base.html' %}
+
+{% block content %}
+<div class="container mt-4 ">
+    <div class="error-container">
+        <h1>哎呀！权限不足</h1>
+        <p>抱歉，您没有权限访问这个页面。</p>
+        <p>如果您认为这是一个错误，请联系管理员或尝试 <a href="/">返回主页</a>。</p>
+    </div>
+</div>
+{% endblock %}

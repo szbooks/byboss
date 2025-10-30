@@ -1,0 +1,171 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+    {#    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">#}
+    <!-- <link href="https://getbootstrap.com/docs/5.3/assets/css/docs.css" rel="stylesheet"> -->
+    {#    <title>Bootstrap Example</title>#}
+    {#    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>#}
+    <script src="https://cdn.staticfile.org/twitter-bootstrap/5.3.0-alpha1/js/bootstrap.bundle.min.js"></script>
+    <div class="content-area">
+        <!-- 顶部操作栏 -->
+        <div class="d-flex align-items-center flex-wrap mb-3">
+            <!-- 操作按钮 -->
+        </div>
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+{#            <li class="nav-item" role="presentation">#}
+{#                <button class="nav-link active" id="home-tab" data-bs-toggle="tab" data-bs-target="#home-tab-pane" type="button" role="tab" aria-controls="home-tab-pane" aria-selected="true">日报#}
+{#                </button>#}
+{#            </li>#}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if current_tab == 'home' %}active{% endif %}" id="home-tab" data-bs-toggle="tab" data-bs-target="#home-tab-pane" type="button" role="tab"
+                        aria-controls="home-tab-pane" aria-selected="{% if current_tab == 'home' %}true{% else %}false{% endif %}">日报
+                </button>
+            </li>
+
+
+{#            <li class="nav-item" role="presentation">#}
+{#                <button class="nav-link" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile-tab-pane" type="button" role="tab" aria-controls="profile-tab-pane" aria-selected="false">月报#}
+{#                </button>#}
+{#            </li>#}
+            <li class="nav-item" role="presentation">
+        <button class="nav-link {% if current_tab == 'profile' %}active{% endif %}" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile-tab-pane" type="button" role="tab" aria-controls="profile-tab-pane" aria-selected="{% if current_tab == 'profile' %}true{% else %}false{% endif %}">月报
+        </button>
+    </li>
+        </ul>
+        <div class="tab-content" id="myTabContent">
+            <div class="tab-pane fade show active" id="home-tab-pane" role="tabpanel" aria-labelledby="home-tab" tabindex="0">
+                <table class="table table-striped table-bordered table-light table-hover">
+                    <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>付费公司总数</th>
+                        <th>付费房号总数</th>
+                        <th>微店总数(有房源)</th>
+                        <th>小红店铺总数</th>
+                        <th>新增公司数</th>
+                        <th>净增付费公司数</th>
+                        <th>新增房号数</th>
+                        <th>净增付费房号数</th>
+                        <th>当日saas付费金额</th>
+                        <th>当日收款总额</th>
+                        <th>当日收款额-押金</th>
+                        <th>当日收款额-房费</th>
+                        {#                <th>当日收款额-客房服务</th>#}
+                        <th>当日收款额-微店</th>
+                        <th>当日订单总数</th>
+                        <th>当日订单总额</th>
+                        <th>推广奖励金总额</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for row in results %}
+                        <tr>
+                            <td>{{ row.stat_day }}</td>
+                            <td>{% if row.pay_company %}{{ row.pay_company|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row.pay_room %}{{ row.pay_room|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row.weshop_company %}{{ row.weshop_company|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row.xhsshop_company %}{{ row.xhsshop_company|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row.new_company %}{{ row.new_company|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row.net_pay_company %}{{ row.net_pay_company|format_number }}{% else %}{{ 0 }}{% endif %}</td>
+                            <td>{% if row.new_room %}{{ row.new_room|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row.net_pay_room %}{{ row.net_pay_room|format_number }}{% else %}{{ 0 }}{% endif %}</td>
+                            <td>{% if row.pay_vip %}{{ row.pay_vip|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row.pay_revenue %}{{ row.pay_revenue|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row.pay_revenue_deposit %}{{ row.pay_revenue_deposit|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row.pay_revenue_roomfee %}{{ row.pay_revenue_roomfee|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row.pay_revenue_weroomfee %}{{ row.pay_revenue_weroomfee|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row.per_contract %}{{ row.per_contract|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row.pay_per_contract %}{{ row.pay_per_contract|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row.pay_bonus %}{{ row.pay_bonus|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+
+                <!-- 底部分页控件 -->
+                <nav aria-label="Page navigation" class="d-flex justify-content-end pagination-container">
+                    <ul class="pagination pagination-sm">
+                        <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                            <a class="page-link" href="{{ url_for('main.stat_operate', page=page-1, tab='home') }}">上一页</a>
+                        </li>
+                        {% for num in range(1, total_pages + 1) %}
+                            <li class="page-item {% if num == page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('main.stat_operate', page=num, tab='home') }}">{{ num }}</a>
+                            </li>
+                        {% endfor %}
+                        <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                            <a class="page-link" href="{{ url_for('main.stat_operate', page=page+1, tab='home') }}">下一页</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+
+
+            <div class="tab-pane fade" id="profile-tab-pane" role="tabpanel" aria-labelledby="profile-tab" tabindex="0">
+                <table class="table table-striped table-bordered table-light table-hover">
+                    <thead>
+                    <tr>
+                        <th>月份</th>
+                        <th>付费公司总数</th>
+                        <th>付费房号总数</th>
+                        <th>微店总数(有房源)</th>
+                        <th>小红店铺总数</th>
+                        <th>新增公司数</th>
+                        <th>净增付费公司数</th>
+                        <th>新增房号数</th>
+                        <th>净增付费房号数</th>
+                        <th>当月saas付费金额</th>
+                        <th>当月收款总额</th>
+                        <th>当月收款额-押金</th>
+                        <th>当月收款额-房费</th>
+                        {#                <th>当日收款额-客房服务</th>#}
+                        <th>当月收款额-微店</th>
+                        <th>当月订单总数</th>
+                        <th>当月订单总额</th>
+                        <th>推广奖励金总额</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for row_month in sumresults %}
+                        <tr>
+                            <td>{{ row_month.months }}</td>
+                            {#                            <td>{{ row_month.total_nc }}</td>#}
+                            <td>{% if row_month.pay_company %}{{ row_month.pay_company|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row_month.pay_room %}{{ row_month.pay_room|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row_month.weshop_company %}{{ row_month.weshop_company|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row_month.xhsshop_company %}{{ row_month.xhsshop_company|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row_month.total_nc %}{{ row_month.total_nc|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row_month.total_npc %}{{ row_month.total_npc|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row_month.total_nr %}{{ row_month.total_nr|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row_month.total_npr %}{{ row_month.total_npr|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row_month.total_pv %}{{ row_month.total_pv|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row_month.total_pr %}{{ row_month.total_pr|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row_month.total_prd %}{{ row_month.total_prd|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row_month.total_prw %}{{ row_month.total_prw|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            {#                    <td>{% if row.pay_revenue_servicefee %}{{ row.pay_revenue_servicefee }}{% else %}{{ "" }}{% endif %}</td>#}
+                            <td>{% if row_month.total_prw %}{{ row_month.total_prw|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row_month.total_pc %}{{ row_month.total_pc|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row_month.total_ppc %}{{ row_month.total_ppc|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                            <td>{% if row_month.pay_bonus %}{{ row_month.pay_bonus|format_number }}{% else %}{{ "" }}{% endif %}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+
+            </div>
+        </div>
+    </div>
+    <style>
+        /* 假设你的导航有一个特定的ID或类名，例如#myTab */
+        #myTab .nav-link {
+            width: 100px; /* 或任何你需要的宽度 */
+            text-align: center; /* 如果需要的话，让文本居中 */
+        }
+
+
+        #myTabContent {
+        {#margin-left: 6px; /* 如果需要的话，让文本居中 */#} margin-top: 5px;
+        }
+    </style>
+
+{% endblock %}

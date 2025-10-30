@@ -1,0 +1,119 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+    <div class="container">
+        <form action="{{ url_for('main.add_coop_ex') }}" method="post" id="coopForm">
+            <!-- 合作伙伴 -->
+            <div class="row mb-3">
+                <label for="name" class="col-sm-1 col-form-label">合作伙伴：<span class="text-danger">*</span></label>
+                <div class="col-sm-5 d-flex align-items-center">
+                    <input type="text" class="form-control" id="name" name="name" required>
+                </div>
+            </div>
+
+            <!-- 邀请码 -->
+            <div class="row mb-3">
+                <label for="code" class="col-sm-1 col-form-label">推广邀请码：</label>
+                <div class="col-sm-5 d-flex align-items-center">
+                    <input type="text" class="form-control" id="code" name="code" placeholder="多个邀请码请用英文逗号分割">
+                </div>
+            </div>
+
+                  <!-- 联系电话 -->
+            <div class="row mb-3">
+                <label for="phone" class="col-sm-1 col-form-label">联系方式：</label>
+                <div class="col-sm-5">
+                    <input type="text" class="form-control" id="phone" name="phone">
+                </div>
+            </div>
+                  <!-- 微信id -->
+            <div class="row mb-3">
+                <label for="wx_id" class="col-sm-1 col-form-label">微信id：</label>
+                <div class="col-sm-5">
+                    <input type="text" class="form-control" id="wx_id" name="wx_id">
+                </div>
+            </div>
+
+            <!-- 合作区域 -->
+            <div class="row mb-3">
+                <label for="area" class="col-sm-1 col-form-label">合作区域：</label>
+                <div class="col-sm-5">
+                    <input type="text" class="form-control" id="area" name="area">
+                </div>
+            </div>
+
+                      <!-- 优惠策略 -->
+            <div class="row mb-3">
+                <label for="discounts" class="col-sm-1 col-form-label">优惠策略：</label>
+                <div class="col-sm-5">
+                    <textarea class="form-control" id="discounts" name="discounts" style="height: 150px"></textarea>
+                </div>
+            </div>
+
+            <!-- 备注 -->
+            <div class="row mb-3">
+                <label for="remark" class="col-sm-1 col-form-label">备注：</label>
+                <div class="col-sm-5">
+                    <textarea class="form-control" id="remark" name="remark" style="height: 150px"></textarea>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-sm-10 offset-sm-1">
+                    <button type="submit" class="btn btn-primary me-2">提交</button>
+                    <a href="{{ url_for('main.coop_ex') }}" class="btn btn-secondary">取消</a>
+                </div>
+            </div>
+        </form>
+
+        <script>
+            $(document).ready(function () {
+                // 监听查询按钮的点击事件
+                $('#searchCompanyBtn').on('click', function () {
+                    var companyId = $('#company_id').val();
+
+                    // 清除之前的反馈信息
+                    $('#company_id_feedback').empty();
+
+                    // 发送 AJAX 请求来查询公司 ID
+                    $.ajax({
+                        url: '/old_search_company',
+                        method: 'GET',
+                        data: {
+                            'company_id': companyId
+                        },
+                        success: function (response) {
+                            if (response && response.found) {
+                                // 如果找到了数据，清除反馈信息
+                                $('#company_id_feedback').empty();
+                                {#$('#company_id_feedback').text(data.company_id);#}
+
+                                // 更新表单字段
+                                updateFormFields(response.data);
+                            } else {
+                                // 如果未找到数据，在输入框下方显示提示信息
+                                $('#company_id_feedback').empty();
+                                $('#company_id_feedback').text('未找到数据');
+                            }
+                        },
+                        error: function (error) {
+                            console.error('Failed to search company:', error);
+                            $('#company_id_feedback').text('查询失败，请稍后再试');
+                        }
+                    });
+                });
+
+                // 更新表单字段的函数
+                function updateFormFields(data) {
+                    $('#company_id_feedback').text("已查找到公司:" + data.company_id + " 的数据");
+                    $('#invoice_head').val(data.invoice_head);
+                    $('#tax_id').val(data.tax_id);
+                    $('#khh').val(data.khh);
+                    $('#bank_account').val(data.bank_account);
+                    $('#addr').val(data.addr);
+                    $('#remark').val(data.remark);  // 假设数据中包含 remark 字段
+                }
+            });
+        </script>
+    </div>
+{% endblock %}

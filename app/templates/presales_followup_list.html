@@ -1,0 +1,1605 @@
+{% extends 'layout/base.html' %}
+
+
+{% block content %}
+    <script src="{{ url_for('static', filename='js/laydate.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/date_select/jquery.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/date_select/moment.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/date_select/daterangepicker.min.js') }}"></script>
+    {#    <script src="{{ url_for('static', filename='js/date_select/jquery.min.js') }}"></script>#}
+    {#    <script src="{{ url_for('static', filename='js/date_select/moment.js') }}"></script>#}
+    {#    <script src="{{ url_for('static', filename='js/date_select/npm.js') }}"></script>#}
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/date_select/daterangepicker.css') }}">
+    {#    <link rel="stylesheet" href="{{ url_for('static', filename='css/date_select/bootstrap-theme.css') }}">#}
+    {#    <link rel="stylesheet" href="{{ url_for('static', filename='css/date_select/daterangepicker.css') }}">#}
+
+    <div class="content-area">
+        <!-- 顶部操作栏 -->
+        <div class="d-flex align-items-center flex-wrap mb-3">
+            <!-- 查询表单 -->
+            <form id="company-form" action="{{ url_for('main.presales_followup') }}" method="get" class="d-flex align-items-center mb-2 flex-grow-0">
+                <input type="text" class="input-group-text me-2" name="company_id" placeholder="输入公司ID" value="{{ request.args.get('company_id', '') }}">
+                <select class="form-select me-2 search_account" name="account_status" id="account_status">
+                    <option value=''>账号状态</option>
+                    <option value="5" {% if status_filter['account_status'] == '5' %}selected{% endif %}>未激活</option>
+                    <option value="1" {% if status_filter['account_status'] == '1' %}selected{% endif %}>试用期</option>
+                    <option value="2" {% if status_filter['account_status'] == '2' %}selected{% endif %}>已付费</option>
+                    <option value="3" {% if status_filter['account_status'] == '3' %}selected{% endif %}>保号期</option>
+                    <option value="4" {% if status_filter['account_status'] == '4' %}selected{% endif %}>冻结期</option>
+                </select>
+
+                <select class="form-select me-2 search_presaler" name="presaler" id="presaler">
+                    <option value=''>售前人员</option>
+                    {% for presaler in presalerlist %}
+                        <option value='{{ presaler.username }}'>{{ presaler.realname }}</option>
+                    {% endfor %}
+                </select>
+
+
+                <!-- Hidden field for btnradio -->
+                <input type="hidden" name="btnradio" id="hidden_btnradio">
+
+
+                <select class="form-select me-2 search_account" name="task_status" id="task_status">
+                    <option value=''>任务状态</option>
+                    <option value="s" {% if status_filter['task_status'] == 's' %}selected{% endif %}>售前待处理</option>
+                    <option value="r" {% if status_filter['task_status'] == 'r' %}selected{% endif %}>客服待认领</option>
+                    <option value="w" {% if status_filter['task_status'] == 'w' %}selected{% endif %}>客服已认领</option>
+                    <option value="e" {% if status_filter['task_status'] == '3' %}selected{% endif %}>已结束</option>
+                </select>
+
+                {#                <input type="text" class="input-group-text me-2" name="company_id" placeholder="选择日期(日期范围)：" class="laydate_m3 lay_type_ym" style="width:165px" readonly="">#}
+
+                {#        <span class="laydate_m3_fa">#}
+                {#            <input type="text" placeholder="选择日期(日期范围)：" class="input-group-text me-2 laydate_m3" style="width:165px" readonly="">#}
+                {#        </span>#}
+
+
+                <input type="text" placeholder="选择日期范围：" class="input-group-text me-2 date_select" id="demo" name="date_select" style="width:350px" readonly="">
+
+
+                <!-- Move the button inside the input group -->
+                <button type="submit" class="btn btn-outline-primary fixed-width-btn">查询</button>
+            </form>
+
+            <div class="btn-group right-align scale-search" role="group" aria-label="Basic radio toggle button group">
+                <input type="radio" class="btn-check" name="btnradio" id="btnradio1" autocomplete="off" {% if persaler_list_value == '' or persaler_list_value != 'w' %}checked{% endif %}>
+                <label class="btn btn-outline-primary" for="btnradio1">全部数据</label>
+
+                <input type="radio" class="btn-check" name="btnradio" id="btnradio2" autocomplete="off" {% if persaler_list_value == 'w' %}checked{% endif %}>
+                <label class="btn btn-outline-primary" for="btnradio2">W客户</label>
+
+                <input type="radio" class="btn-check" name="btnradio" id="btnradio3" autocomplete="off" {% if persaler_list_value == 's' %}checked{% endif %}>
+                <label class="btn btn-outline-primary" for="btnradio3">S客户</label>
+            </div>
+
+
+        </div>
+        <p class="record_custom-margin">记录总数: {{ total_count }} &emsp;&emsp;&emsp;当日新增: {{ new_count }} </p>
+
+
+        <table id="company-table" class="table table-striped table-bordered table-light table-hover">
+            <thead>
+            <tr>
+                <th>公司ID</th>
+                <th>房号数</th>
+                <th>到期日</th>
+                <th>账号状态</th><!-- 试用期，已付费，保号期，冻结期，紧急延期 -->
+                <th>售前跟进</th>
+                <th>民宿基本情况（售前）</th>
+                <th>试用期目标（售前）</th>
+                <th>功能使用</th>
+                <th>售前备注</th>
+                <th>跟进说明（客服）</th>
+                <th>任务状态</th>
+                <th>客服跟进</th>
+                <th>任务更新日期</th>
+                <th>统计日期</th>
+                <th>任务创建时间</th>
+                <th>操作</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for company  in results %}
+
+                {#                    <td#}
+                {#    {% if company.company_id %}#}
+                {#        title="company_id: {{ company.company_id }}"#}
+                {#    {% endif %}#}
+                {#>#}
+                {#    {% if company.company_id %}{{ company.company_id }}{% else %}{{ "" }}{% endif %}#}
+                {#</td>#}
+
+
+                {% set details = "公司id：" ~ (company.company_id if company.company_id else "") ~
+                  "<br>公司名称：" ~ (company.company_name if company.company_name else "") ~
+                  "<br>城市：" ~ (company.city if company.city else "") ~
+                  "<br>注册日期：" ~ (company.registration_date if company.registration_date else "") ~
+                  "<br>注册人：" ~ (company.registrant if company.registrant else "") ~
+                  "<br>注册来源：" ~ (company.source if company.source else "") ~
+                  "<br>员工数：" ~ (company.staff_count if company.staff_count else "") ~
+                  "<br>账号状态：" ~ (company.account_state if company.account_state else "") ~
+                  "<br>激活时间：" ~ (company.active_time if company.active_time else "") ~
+                  "<br>到期日：" ~ (company.end_data if company.end_data else "") ~
+                  "<br>房号数：" ~ (company.room_count if company.room_count else "") ~
+                  "<br>近7日订单数：" ~ (company.recent_orders if company.recent_orders else "") ~
+                  "<br>最近登录日期：" ~ (company.last_logon if company.last_logon else "") ~
+                  "<br>关联公司：" ~ (company.affiliated_company if company.affiliated_company else "") %}
+
+                <td data-toggle="tooltip" title="<div style='text-align: left;'>{{ details }}</div>" data-html="true">
+                    <a href="https://www.bypms.cn/admin/user/fakelogin?companyId={{ company.company_id }}" target="_blank">
+                        {{ company.company_id }}
+                    </a>
+                </td>
+
+
+
+                <td>{% if company.room_count %}{{ company.room_count }}{% else %}{{ 0 }}{% endif %}</td>
+                <td>{% if company.end_data %}{{ company.end_data }}{% else %}{{ "" }}{% endif %}</td>
+                <td>
+                    {% if company.account_state == '1' %}
+                        <span class="status-pending">试用期</span>
+                    {% elif company.account_state == '2' %}
+                        已付费
+                    {% elif company.account_state == '3' %}
+                        保号期
+                    {% elif company.account_state == '4' %}
+                        冻结期
+                    {% elif company.account_state == '5' %}
+                        未激活
+                    {% else %}
+                        {{ "" }}
+                    {% endif %}
+                </td>
+                <td>{% if company.presaler %}{{ company.presaler }}{% else %}{{ "" }}{% endif %}</td>
+                <td style="text-align: left; max-height: 200px; overflow: hidden;">
+    <span class="ellipsis" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" title="" id="ellipsis-info-{{ loop.index }}">
+        <div id="basic-info-{{ loop.index }}">
+            {% if company.basic_info %}
+                <script>
+                    function generateBasicInfo(companyInfo, index) {
+                        var jsonStringWithQuotes = companyInfo.replace(/&#34;/g, '"');
+                        var basicInfo = JSON.parse(jsonStringWithQuotes);
+
+                        var keyMapping = {
+                            "input_ispms": "用过PMS",
+                            "input_direct": "直连平台",
+                            "input_syn": "房态同步",
+                            "input_reception": "前台",
+                            "input_checkin": "入住",
+                            "input_deposit": "押金",
+                            "input_cleaning": "保洁",
+                            "input_price": "改价",
+                            "input_chat": "聊天",
+                            "input_evaluate": "评价",
+                            "input_recustomer": "回头客",
+                            "input_einvestor": "投资人",
+                            "input_finance": "财务",
+                            // 其他键值对
+                        };
+
+                        var basicInfoHtml = '';
+                        for (var key in basicInfo) {
+                            if (basicInfo[key] !== '') {
+                                var replacedKey = keyMapping[key] || key;
+                                basicInfoHtml += '<div><b style="text-align:left;">' + replacedKey + ':</b> ' + basicInfo[key] + '</div>';
+                            }
+                        }
+
+                        document.getElementById('basic-info-' + index).innerHTML = basicInfoHtml;
+                        console.log(basicInfoHtml);
+                        document.getElementById('ellipsis-info-' + index).setAttribute('title', basicInfoHtml);
+                    }
+
+                    document.addEventListener('DOMContentLoaded', function () {
+                        {% if company.basic_info %}
+                            var companyInfo = '{{ company.basic_info }}';
+                            generateBasicInfo(companyInfo, '{{ loop.index }}');
+                        {% endif %}
+
+                        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                            return new bootstrap.Tooltip(tooltipTriggerEl);
+                        });
+                    });
+                </script>
+            {% endif %}
+        </div>
+    </span>
+                </td>
+
+
+                <td style="text-align:left;">
+                    <div id="period_target-{{ company.company_id }}">
+                        <div id="check-{{ company.company_id }}">必选</div>
+                        <div id="optional_check-{{ company.company_id }}">可选</div>
+                    </div>
+                    <script>
+                        var period_targetJson = '{{ company.period_target }}';
+
+                        var period_targetJsontra = period_targetJson.replace(/&#34;/g, '"');
+
+                        var period_target = JSON.parse(period_targetJsontra);
+
+                        var period_keyMapping = {
+                            "input_check1": "直连",
+                            "input_check2": "房态",
+                            "input_check3": "入住",
+                            "input_check4": "保洁",
+                            "input_optional_check1": "直连",
+                            "input_optional_check2": "房态",
+                            "input_optional_check3": "入住",
+                            "input_optional_check4": "保洁",
+                        };
+
+                        var checkDiv = document.getElementById("check-{{ company.company_id }}");
+                        var optionalCheckDiv = document.getElementById("optional_check-{{ company.company_id }}");
+
+                        for (var key in period_target) {
+                            var value = period_target[key];
+                            if (value !== "") {
+                                var mappedKey = period_keyMapping[key] || key;
+                                {#var mappedKey = key;#}
+                                if (["input_check1", "input_check2", "input_check3", "input_check4"].includes(key)) {
+                                    checkDiv.innerHTML += "<div><b>" + mappedKey + ":</b> " + value + "</div>";
+                                } else if (["input_optional_check1", "input_optional_check2", "input_optional_check3", "input_optional_check4"].includes(key)) {
+                                    optionalCheckDiv.innerHTML += "<div><b>" + mappedKey + ":</b> " + value + "</div>";
+                                }
+                            }
+                        }
+                    </script>
+
+                    </span>
+                </td>
+                <td>
+                    <div style="display: flex;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: bold;"></div>
+                            <div>
+                                <script>
+                                    var used_modulesJson = '{{ company.used_modules }}';
+                                    var used_modulesJsontra = used_modulesJson.replace(/&#34;/g, '"');
+                                    var used_modules = JSON.parse(used_modulesJsontra);
+                                    var count = 0; // 计数器，用于控制每列最多显示8行
+                                    for (var key in used_modules) {
+                                        if (count === 8) {
+                                            break; // 达到8行，结束循环
+                                        }
+                                        document.write("<div style='text-align: left;'>");
+                                        document.write("<span style='" + (used_modules[key] !== null && used_modules[key] !== "" && used_modules[key] !== "0" ? "font-weight: bold;" : "") + "'>" + key + "</span>: " + (used_modules[key] !== null ? used_modules[key] : ""));
+                                        document.write("</div>");
+                                        count++;
+                                    }
+                                </script>
+                            </div>
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: bold;"></div>
+                            <div>
+                                <script>
+                                    var used_modulesJson = '{{ company.used_modules }}';
+                                    var used_modulesJsontra = used_modulesJson.replace(/&#34;/g, '"');
+                                    var used_modules = JSON.parse(used_modulesJsontra);
+                                    var count = 0; // 计数器，用于控制每列最多显示8行
+                                    var startSecondColumn = false; // 控制第二列的开始
+                                    for (var key in used_modules) {
+                                        if (count === 8) {
+                                            startSecondColumn = true;
+                                        }
+                                        if (startSecondColumn) {
+                                            document.write("<div style='text-align: left;'>");
+                                            document.write("<span style='" + (used_modules[key] !== null && used_modules[key] !== "" && used_modules[key] !== "0" ? "font-weight: bold;" : "") + "'>" + key + "</span>: " + (used_modules[key] !== null ? used_modules[key] : ""));
+                                            document.write("</div>");
+                                        }
+                                        count++;
+                                    }
+                                </script>
+                            </div>
+                        </div>
+                    </div>
+
+
+                </td>
+                {#                    <td>{% if company.presales_remark %}{{ company.presales_remark }}{% else %}{{ "" }}{% endif %}</td>#}
+                <td>
+                    <span class="ellipsis" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ company.presales_remark }}">{% if company.presales_remark %}
+                        {{ company.presales_remark }}{% else %}{{ "" }}{% endif %}</span>
+                </td>
+                <td>
+                    <span class="ellipsis" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ company.progress_description }}">{% if company.progress_description %}
+                        {{ company.progress_description }}{% else %}{{ "" }}{% endif %}</span>
+                </td>
+                {#                    <td>{% if company.progress_description %}{{ company.progress_description }}{% else %}{{ "" }}{% endif %}</td>#}
+
+                <td>
+                    {% if company.state == 's' %}
+                        <span class="status-pending">待售前处理</span><br>
+                    {% elif company.state == 'r' %}
+                        待客服认领<br>
+                    {% elif company.state == 'w' %}
+                        已认领<br>
+                    {% elif company.state == 'e' %}
+                        已结束<br>
+                    {% else %}
+                        {{ "" }}
+                    {% endif %}
+
+                    {% if company.state != 's' %}
+                        {% if company.customer %}
+                            <span>{{ company.customer }}</span>  <!-- 显示 company.customer 的值 -->
+                        {% else %}
+                            <button type="button" class="btn btn-outline-primary" id="confirmClaim{{ company.company_id }}" data-bs-dismiss="modal"
+                                    onclick="confirmClaim('1', '{{ company.company_id }}')"
+                                    style="margin-top: 10px;">认领
+                            </button>
+                        {% endif %}
+                    {% endif %}
+                    {% if company.state == 'w' %}
+                        <div class="dropdown-center">
+                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle transparent-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                分配人员
+                            </button>
+                            <ul class="dropdown-menu">
+                                {% for presaler in presalerlist %}
+                                    <li><a class="dropdown-item" href="#" onclick="confirmClaim('2','{{ company.company_id }}','{{ presaler['id'] }}')">{{ presaler['realname'] }}</a></li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+
+                </td>
+                <td>{% if company.customer %}{{ company.customer }}{% else %}{{ "" }}{% endif %}</td>
+
+
+                <td>{% if company.submit_time %}{{ company.submit_time }}{% else %}{{ "" }}{% endif %}</td>
+                <td>{% if company.idx_data %}{{ company.idx_data }}{% else %}{{ "" }}{% endif %}</td>
+                <td>{% if company.create_data %}{{ company.create_data }}{% else %}{{ "" }}{% endif %}</td>
+
+
+                <td style=" width: 100px;">
+                    {#                        <a href="#" class="presales_remark_modal" data-company-id="{{ company.company_id }}">售前备注</a><br>#}
+                    <a href="#" class="presales_remark_modal" data-bs-toggle="modal" data-bs-target="#presalesremarkModal{{ company.company_id }}"
+                       data-company-id="{{ company.company_id }}">售前备注</a><br>
+                    <a href="#" class="open-modal" data-company-id="{{ company.company_id }}">目标完成</a><br>
+                    <a href="#" class="progress-modal" data-company-id="{{ company.company_id }}">跟进说明</a><br>
+                    <a href="#" class="baseinfo-modal" data-company-id="{{ company.company_id }}">目标设置</a>
+
+
+                    <div class="modal fade" id="baseinfoModal{{ company.company_id }}" tabindex="-1" aria-labelledby="baseinfoModalLabel{{ company.company_id }}" aria-hidden="true">
+                        <div class="modal-dialog modal-xl"> <!-- or modal-xl -->
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="baseinfoModalLabel{{ company.company_id }}">处理备注({{ company.company_id }})</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <!-- Remarks form -->
+                                    <form id="baseinfoForm{{ company.company_id }}" action="{{ url_for('main.save_company_remarks') }}" method="post" class="mb-2">
+                                        <p class="text-start"><b>民宿基本情况</b></p>
+                                        <div class="container-fluid">
+                                            <div class="row">
+                                                <div class="row ">
+                                                    <div class="col">
+                                                        <div class="input-group input-group-lg input-group-lg-custom">
+                                                            <span class="input-group-text info_label" id="inputGroup-sizing-lg"><p class="largeText">是否用过pms</p></span>
+                                                            <input type="text" class="form-control" name="input_ispms" aria-label="Sizing example input"
+                                                                   aria-describedby="inputGroup-sizing-lg">
+                                                        </div>
+                                                    </div>
+                                                    <div class="col">
+                                                        <div class="input-group input-group-lg">
+                                                            <span class="input-group-text info_label" id="inputGroup-sizing-lg"><p class="largeText">直连平台</p></span>
+                                                            <input type="text" class="form-control" name="input_direct" aria-label="Sizing example input"
+                                                                   aria-describedby="inputGroup-sizing-lg">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="row ">
+                                                    <div class="col">
+                                                        <div class="input-group input-group-lg">
+                                                            <span class="input-group-text info_label" id="inputGroup-sizing-lg"><p class="largeText">房态同步</p></span>
+                                                            <input type="text" class="form-control" name="input_syn" aria-label="Sizing example input" aria-describedby="inputGroup-sizing-lg">
+                                                        </div>
+                                                    </div>
+                                                    <div class="col">
+                                                        <div class="input-group input-group-lg">
+                                                            <span class="input-group-text info_label" id="inputGroup-sizing-lg"><p class="largeText">前台</p></span>
+                                                            <input type="text" class="form-control" name="input_reception" aria-label="Sizing example input"
+                                                                   aria-describedby="inputGroup-sizing-lg">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="row ">
+                                                    <div class="col">
+                                                        <div class="input-group input-group-lg">
+                                                            <span class="input-group-text info_label" id="inputGroup-sizing-lg"><p class="largeText">入住</p></span>
+                                                            <input type="text" class="form-control" name="input_checkin" aria-label="Sizing example input"
+                                                                   aria-describedby="inputGroup-sizing-lg">
+                                                        </div>
+                                                    </div>
+                                                    <div class="col">
+                                                        <div class="input-group input-group-lg">
+                                                            <span class="input-group-text info_label" id="inputGroup-sizing-lg"><p class="largeText">押金</p></span>
+                                                            <input type="text" class="form-control" name="input_deposit" aria-label="Sizing example input"
+                                                                   aria-describedby="inputGroup-sizing-lg">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="row ">
+                                                    <div class="col">
+                                                        <div class="input-group input-group-lg">
+                                                            <span class="input-group-text info_label" id="inputGroup-sizing-lg"><p class="largeText">保洁</p></span>
+                                                            <input type="text" class="form-control" name="input_cleaning" aria-label="Sizing example input"
+                                                                   aria-describedby="inputGroup-sizing-lg">
+                                                        </div>
+                                                    </div>
+                                                    <div class="col">
+                                                        <div class="input-group input-group-lg">
+                                                            <span class="input-group-text info_label" id="inputGroup-sizing-lg"><p class="largeText">改价</p></span>
+                                                            <input type="text" class="form-control" name="input_price" aria-label="Sizing example input"
+                                                                   aria-describedby="inputGroup-sizing-lg">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="row 3">
+                                                    <div class="col">
+                                                        <div class="input-group input-group-lg">
+                                                            <span class="input-group-text info_label" id="inputGroup-sizing-lg"><p class="largeText">聊天</p></span>
+                                                            <input type="text" class="form-control" name="input_chat" aria-label="Sizing example input" aria-describedby="inputGroup-sizing-lg">
+                                                        </div>
+                                                    </div>
+                                                    <div class="col">
+                                                        <div class="input-group input-group-lg">
+                                                            <span class="input-group-text info_label" id="inputGroup-sizing-lg"><p class="largeText">评价</p></span>
+                                                            <input type="text" class="form-control" name="input_evaluate" aria-label="Sizing example input"
+                                                                   aria-describedby="inputGroup-sizing-lg">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col">
+                                                        <div class="input-group input-group-lg">
+                                                            <span class="input-group-text info_label" id="inputGroup-sizing-lg"><p class="largeText">回头客</p></span>
+                                                            <input type="text" class="form-control" name="input_recustomer" aria-label="Sizing example input"
+                                                                   aria-describedby="inputGroup-sizing-lg">
+                                                        </div>
+                                                    </div>
+                                                    <div class="col">
+                                                        <div class="input-group input-group-lg">
+                                                            <span class="input-group-text info_label" id="inputGroup-sizing-lg"><p class="largeText">投资人</p></span>
+                                                            <input type="text" class="form-control" name="input_einvestor" aria-label="Sizing example input"
+                                                                   aria-describedby="inputGroup-sizing-lg">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="row  mb-3">
+                                                    <div class="col">
+                                                        <div class="input-group input-group-lg">
+                                                            <span class="input-group-text info_label" id="inputGroup-sizing-lg"><p class="largeText">财务</p></span>
+                                                            <input type="text" class="form-control" name="input_finance" aria-label="Sizing example input"
+                                                                   aria-describedby="inputGroup-sizing-lg">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <p class="text-start"><b>试用期目标</b></p>
+                                                <div class="col-md-12">
+                                                    <div class="row">
+                                                        <div class="col-md-6">
+
+                                                            <div class="dropdown dropdown-container">
+                                                                <button type="button" class="btn btn-outline-primary dropdown-toggle left-align-text" data-bs-toggle="dropdown">
+                                                                    必选项
+                                                                </button>
+                                                                <ul class="dropdown-menu dropdown-menu-left" id="leftContainer_{{ company.company_id }}">
+                                                                    <li>
+                                                                        <a class="dropdown-item" href="###">
+                                                                            <div class="form-check">
+                                                                                <input type="checkbox" class="form-check-input" id="check1" name="option1" value="">
+                                                                                <label class="form-check-label" for="check1">直连</label>
+                                                                                {#                                                                                    <input type="checkbox" class="form-check-input" id="check1_{{ company.company_id }}" name="option1" value="">#}
+                                                                                {#                                                                                    <label class="form-check-label" for="check1_{{ company.company_id }}">直连</label>#}
+                                                                            </div>
+                                                                        </a>
+                                                                    </li>
+                                                                    <li>
+                                                                        <a class="dropdown-item" href="###">
+                                                                            <div class="form-check">
+                                                                                <input type="checkbox" class="form-check-input" id="check2" name="option2" value="something">
+                                                                                <label class="form-check-label" for="check2">房态</label>
+                                                                            </div>
+                                                                        </a>
+                                                                    </li>
+                                                                    <li>
+                                                                        <a class="dropdown-item" href="###">
+                                                                            <div class="form-check">
+                                                                                <input type="checkbox" class="form-check-input" id="check3" name="option3" value="something">
+                                                                                <label class="form-check-label" for="check3">入住</label>
+                                                                            </div>
+                                                                        </a>
+                                                                    </li>
+                                                                    <a class="dropdown-item" href="###">
+                                                                        <div class="form-check">
+                                                                            <input type="checkbox" class="form-check-input" id="check4" name="option4" value="something">
+                                                                            <label class="form-check-label" for="check4">保洁</label>
+                                                                        </div>
+                                                                    </a>
+                                                                    </li>
+                                                                </ul>
+                                                            </div>
+
+                                                            <div class="mt-3 custom-label">
+                                                                {#                                                                    <label for="generatedInputLeft_{{ company.company_id }}" class="form-label custom-label">必选项列表：</label>#}
+
+                                                                <div id="generatedInputLeft_{{ company.company_id }}"></div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-6">
+
+                                                            <div class="dropdown dropdown-container">
+                                                                <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+                                                                    可选项
+                                                                </button>
+                                                                <ul class="dropdown-menu dropdown-menu-right" id="rightContainer_{{ company.company_id }}">
+                                                                    <a class="dropdown-item" href="###">
+                                                                        <div class="form-check">
+                                                                            <input type="checkbox" class="form-check-input" id="optional_check1" name="option1" value="something">
+                                                                            <label class="form-check-label" for="check1">直连</label>
+                                                                            {#                                                                                <input type="checkbox" class="form-check-input" id="optional_check1_{{ company.company_id }}" name="option1" value="something">#}
+                                                                            {#                                                                                <label class="form-check-label" for="check1_{{ company.company_id }}">直连</label>#}
+                                                                        </div>
+                                                                    </a>
+                                                                    </li>
+                                                                    <li>
+                                                                        <a class="dropdown-item" href="###">
+                                                                            <div class="form-check">
+                                                                                <input type="checkbox" class="form-check-input" id="optional_check2" name="option2" value="something">
+                                                                                <label class="form-check-label" for="check2">房态</label>
+                                                                            </div>
+                                                                        </a>
+                                                                    </li>
+                                                                    <li>
+                                                                        <a class="dropdown-item" href="###">
+                                                                            <div class="form-check">
+                                                                                <input type="checkbox" class="form-check-input" id="optional_check3" name="option3" value="something">
+                                                                                <label class="form-check-label" for="check3">入住</label>
+                                                                            </div>
+                                                                        </a>
+                                                                    </li>
+                                                                    <a class="dropdown-item" href="###">
+                                                                        <div class="form-check">
+                                                                            <input type="checkbox" class="form-check-input" id="optional_check4" name="option4" value="something">
+                                                                            <label class="form-check-label" for="check4">保洁</label>
+                                                                        </div>
+                                                                    </a>
+                                                                    </li>
+                                                                </ul>
+                                                            </div>
+
+                                                            <div class="mt-3 custom-label">
+
+                                                                <div id="generatedInputRight_{{ company.company_id }}"></div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                                            <button type="submit" class="btn btn-primary" name="action" value="save">保存</button>
+                                            <button type="submit" class="btn btn-primary" name="action" value="customer-process" style="width: 200px;">提交客服认领</button>
+
+                                        </div>
+                                        {#                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>#}
+                                        {#                                            <button type="submit" class="btn btn-primary">保存备注</button>#}
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <!-- Remarks Modal -->
+                    <div class="modal fade" id="remarksModal{{ company.company_id }}" tabindex="-1" aria-labelledby="remarksModalLabel{{ company.company_id }}" aria-hidden="true">
+                        <div class="modal-dialog modal-xl" style="height: 200px;"> <!-- or modal-xl -->
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="remarksModalLabel{{ company.company_id }}">目标完成情况设置({{ company.company_id }})</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <!-- Remarks form -->
+                                    <form id="remarksForm{{ company.company_id }}" action="{{ url_for('main.save_progress_exec') }}" method="post" class="mb-2"
+                                          data-company-id="{{ company.company_id }}">
+
+
+                                        <div class="container-fluid">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <p class="text-start" style="margin: 10px;"><b>必选项</b></p>
+                                                    <div class="select-left" id="generatedInputLeft-{{ company.company_id }}">
+
+
+                                                    </div>
+                                                </div>
+
+
+                                                <div class="col-md-6">
+                                                    <p class="text-start" style="margin: 10px;"><b>可选项</b></p>
+                                                    <div class="select-right" id="generatedInputRight-{{ company.company_id }}">
+
+
+                                                    </div>
+                                                </div>
+
+                                            </div>
+                                        </div>
+                                        <div class="row mt-3 justify-content-center"></div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                                            <button type="submit" id="progresssubmit{{ company.company_id }}" class="btn btn-primary" data-company-id="{{ company.company_id }}">保存备注
+                                            </button>
+                                        </div>
+
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 跟进说明Modal -->
+                    <div class="modal fade" id="progressModal{{ company.company_id }}" tabindex="-1" aria-labelledby="exprogressModalLabel{{ company.company_id }}" aria-hidden="true">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+
+                                <form id="progressForm{{ company.company_id }}" action="{{ url_for('main.save_progress_exec') }}" method="post" class="mb-2"
+                                      data-company-id="{{ company.company_id }}">
+
+
+                                    {#                                    <form id="progressForm{{ company.company_id }}" method="post" class="mb-2" data-company-id="{{ company.company_id }}">#}
+                                    <div class="modal-header">
+                                        <h1 class="modal-title fs-5" id="exampleModalLabel">跟进说明及备注({{ company.company_id }})</h1>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="form-group">
+                                                <textarea class="form-control" id="progress_description{{ company.company_id }}" name="progress_description" aria-label="With textarea"
+                                                          style="width: 100%;height: 250px;"></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                                        <button type="submit" class="btn btn-primary">保存</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 售前备注Modal -->
+                    <div class="modal fade" id="presalesremarkModal{{ company.company_id }}" tabindex="-1" aria-labelledby="exprogressModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <form id="presalesremarkForm{{ company.company_id }}" action="{{ url_for('main.save_progress_description') }}" method="post" class="mb-2"
+                                      data-company-id="{{ company.company_id }}">
+                                    <div class="modal-header">
+                                        <h1 class="modal-title fs-5" id="exampleModalLabel">售前备注({{ company.company_id }})</h1>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="form-group">
+                                                <textarea class="form-control" id="presales_remark{{ company.company_id }}" name="presales_remark" aria-label="With textarea"
+                                                          style="width: 100%;height: 250px;"></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                                        <button type="submit" class="btn btn-primary">保存</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+
+                </td>
+
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <div class="modal fade" id="loadingModal" tabindex="-1" aria-labelledby="loadingModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="loadingModalLabel">处理中......</h5>
+                    </div>
+                    <div class="modal-body">
+                        <!-- 加载动画内容，这里可以使用第三方库或者自定义的加载动画 -->
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- 底部分页控件 -->
+        <nav aria-label="Page navigation">
+            <ul class="pagination">
+                {% for page in page_numbers %}
+                    {% if page == '...' %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                    {% else %}
+                        <li class="page-item {% if page == current_page %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('main.unpay_companies', page=page) }}">{{ page }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </nav>
+
+    </div>
+
+    <script>
+        var currentPage;
+        var currentCompanyId;  // 新增的变量
+
+        $(document).ready(function () {
+            $('[data-bs-toggle="tooltip"]').tooltip();
+            $('[data-toggle="tooltip"]').tooltip({
+                html: true  // 允许tooltip包含HTML
+            });
+            $('.baseinfo-modal').click(function () {
+                currentPage = "{{ current_page }}";
+                currentCompanyId = $(this).data('company-id');  // 存储 companyId
+                var companyId = currentCompanyId;
+                {#$('.input-group').find('input[type="text"]').val('');#}
+                $('.input-group').find('input[type="text"].form-control[name^="input_"]').val('');
+
+                $('input[type="checkbox"]').prop('checked', false);
+
+                // Fetch existing data via AJAX and populate the modal
+                $.ajax({
+                    url: "{{ url_for('main.get_company_remarks', company_id='')}}" + companyId,
+                    type: 'GET',
+                    success: function (data) {
+                        // Check if data.remarks is not empty
+                        console.log('Debug message:', data.basic_info);
+
+                        if (data.basic_info) {
+                            var basic_info = JSON.parse(data.basic_info);
+                            $('input[name="input_ispms"]').val(basic_info.input_ispms);
+                            $('input[name="input_direct"]').val(basic_info.input_direct);
+                            $('input[name="input_syn"]').val(basic_info.input_syn);
+                            $('input[name="input_reception"]').val(basic_info.input_reception);
+                            $('input[name="input_checkin"]').val(basic_info.input_checkin);
+                            $('input[name="input_cleaning"]').val(basic_info.input_cleaning);
+                            $('input[name="input_price"]').val(basic_info.input_price);
+                            $('input[name="input_deposit"]').val(basic_info.input_deposit);
+                            $('input[name="input_chat"]').val(basic_info.input_chat);
+                            $('input[name="input_evaluate"]').val(basic_info.input_evaluate);
+                            $('input[name="input_recustomer"]').val(basic_info.input_recustomer);
+                            // Populate other fields if needed
+                        } else {
+                            console.error('No remarks found for the company.');
+                        }
+                        console.log('period_target:', data.period_target);
+                        if (data.period_target.length > 0) {
+                            var period_target = JSON.parse(data.period_target);
+                            console.log('Debug message:', data.period_target);
+                            if ('input_check1' in period_target) {
+                                if ($('#check1').is(':checked')) {
+                                    console.log('#check1 被选中了');
+                                } else {
+                                    console.log('#check1 没有被选中');
+                                    $('#check1').trigger('click');
+                                    $('input[name="input_check1"]').val(period_target.input_check1);
+                                }
+                            }
+                            if ('input_check2' in period_target) {
+                                if ($('#check2').is(':checked')) {
+                                    console.log('#check1 被选中了');
+                                } else {
+                                    console.log('#check1 没有被选中');
+                                    $('#check2').trigger('click');
+                                    $('input[name="input_check2"]').val(period_target.input_check2);
+                                }
+                            }
+                            if ('input_check3' in period_target) {
+                                if ($('#check3').is(':checked')) {
+                                    console.log('#check3 被选中了');
+                                } else {
+                                    console.log('#check3 没有被选中');
+                                    $('#check3').trigger('click');
+                                    $('input[name="input_check3"]').val(period_target.input_check3);
+                                }
+                            }
+                            if ('input_check4' in period_target) {
+                                if ($('#check4').is(':checked')) {
+                                    console.log('#check4 被选中了');
+                                } else {
+                                    console.log('#check1 没有被选中');
+                                    $('#check4').trigger('click');
+                                    $('input[name="input_check4"]').val(period_target.input_check4);
+                                }
+                            }
+
+                            if ('input_optional_check1' in period_target) {
+                                if ($('#optional_check1').is(':checked')) {
+                                    console.log('#check1 被选中了');
+                                } else {
+                                    console.log('#check1 没有被选中');
+                                    $('#optional_check1').trigger('click');
+                                    $('input[name="input_optional_check1"]').val(period_target.input_optional_check1);
+                                }
+                            }
+                            if ('input_optional_check2' in period_target) {
+                                if ($('#optional_check2').is(':checked')) {
+                                    console.log('#check1 被选中了');
+                                } else {
+                                    console.log('#check1 没有被选中');
+                                    $('#optional_check2').trigger('click');
+                                    $('input[name="input_optional_check2"]').val(period_target.input_optional_check2);
+                                }
+                            }
+                            if ('input_optional_check3' in period_target) {
+                                if ($('#optional_check3').is(':checked')) {
+                                    console.log('#check1 被选中了');
+                                } else {
+                                    console.log('#check1 没有被选中');
+                                    $('#optional_check3').trigger('click');
+                                    $('input[name="input_optional_check3"]').val(period_target.input_optional_check3);
+                                }
+                            }
+                            if ('input_optional_check4' in period_target) {
+                                if ($('#optional_check4').is(':checked')) {
+                                    console.log('#check4 被选中了');
+                                } else {
+                                    console.log('#check4 没有被选中');
+                                    $('#optional_check4').trigger('click');
+                                    $('input[name="input_optional_check4"]').val(period_target.input_optional_check4);
+                                }
+                            }
+
+                            // Populate other fields if needed
+                        }
+                    }
+                });
+
+                // Set the company_id input value before serializing the form data
+                $('#companyIdInput').val(companyId);
+                $('#baseinfoModal' + companyId).modal('show');
+            });
+
+
+            // baseinfo表单提交事件在外部处理
+            $('form[id^="baseinfoForm"]').submit(function (e) {
+                // Include the current page number in the form data
+                $('#baseinfoModal' + currentCompanyId).modal('hide');
+                e.preventDefault(); // 阻止表单默认提交行为
+
+
+                {#var currentCompanyId = $(this).data('company-id');#}
+                // 构造表单 ID
+                var formId = "#baseinfoForm" + currentCompanyId;
+                var action = $(this).find('button[name="action"]:focus').val();
+
+                // 获取输入框的值
+                var ispmsValue = $(formId + ' input[name="input_ispms"]').val();
+                var directValue = $(formId + ' input[name="input_direct"]').val();  // 修改了选择器
+                var synValue = $(formId + ' input[name="input_syn"]').val();
+                var receptionValue = $(formId + ' input[name="input_reception"]').val();
+                var checkinValue = $(formId + ' input[name="input_checkin"]').val();
+                var depositValue = $(formId + ' input[name="input_deposit"]').val();
+                var cleaningValue = $(formId + ' input[name="input_cleaning"]').val();
+                var priceValue = $(formId + ' input[name="input_price"]').val();
+                var chatValue = $(formId + ' input[name="input_chat"]').val();
+                var evaluateValue = $(formId + ' input[name="input_evaluate"]').val();
+                var recustomerValue = $(formId + ' input[name="input_recustomer"]').val();
+                var einvestorValue = $(formId + ' input[name="input_einvestor"]').val();
+                var financeValue = $(formId + ' input[name="input_finance"]').val();
+
+                {#alert("input_evaluate:" + evaluateValue);#}
+                {#alert("input_direct  :" + directValue);#}
+                {#alert("formId  :" + formId);#}
+
+// 组装表单数据
+                var formData = {
+                    'company_id': currentCompanyId,
+                    'current_page': currentPage,
+                    'input_ispms': ispmsValue,
+                    'input_direct': directValue,
+                    'input_syn': synValue,
+                    'input_reception': receptionValue,
+                    'input_checkin': checkinValue,
+                    'input_deposit': depositValue,
+                    'input_cleaning': cleaningValue,
+                    'input_price': priceValue,
+                    'input_chat': chatValue,
+                    'input_evaluate': evaluateValue,
+                    'input_recustomer': recustomerValue,
+                    'input_einvestor': einvestorValue,
+                    'input_finance': financeValue,
+                    'action': action
+                };
+
+                $('#generatedInputLeft_' + currentCompanyId + ' input[type="text"]').each(function () {
+                    var inputName = $(this).attr('name');
+                    var inputValue = $(this).val();
+                    console.log("Input Name:", inputName);
+                    console.log("Input Value:", inputValue);
+                    formData[inputName] = inputValue;
+                });
+
+                $('#generatedInputRight_' + currentCompanyId + ' input[type="text"]').each(function () {
+                    var inputName = $(this).attr('name');
+                    var inputValue = $(this).val();
+                    console.log("Input Name:", inputName);
+                    console.log("Input Value:", inputValue);
+                    formData[inputName] = inputValue;
+                });
+
+
+                $('#loadingModal').modal('show');
+                // AJAX request to save company remarks
+                console.log(formData);
+                $.ajax({
+                    url: "/save_company_remarks",
+                    type: 'POST',
+                    data: formData,  // Serialize the form data
+
+                    success: function (response) {
+                        // Handle the success response if needed
+                        console.log(response);
+                        $('#baseinfoForm' + currentCompanyId).modal('hide');  // 使用 currentCompanyId
+                        // Hide loading spinner or modal when the request is complete
+
+                        location.reload();
+                        setTimeout(function () {
+                            $('#loadingModal').modal('hide');
+                        }, 3000);
+                        {#$('#loadingModal').modal('hide');#}
+                        // Display success message
+                        // alert('处理成功');
+                    },
+                    error: function (error) {
+                        // Handle the error response if needed
+                        console.error(error);
+
+                        // Hide loading spinner or modal on error
+                        $('#loadingModal').modal('hide');
+                        $('#baseinfoForm' + currentCompanyId).modal('hide');  // 使用 currentCompanyId
+
+                        // Display an error message
+                        alert('处理失败');
+                    }
+                });
+                // Prevent the default form submission
+                e.preventDefault();
+            });
+
+
+            {#$('#progressModal').modal();#}
+            $('.open-modal').click(function () {
+
+                currentPage = "{{ current_page }}";
+                currentCompanyId = $(this).data('company-id');  // 存储 companyId
+                console.log("currentCompanyId", currentCompanyId);
+                var companyId = currentCompanyId;
+                // Fetch existing data via AJAX and populate the modal
+                $('#generatedInputLeft-' + companyId).empty();
+                $('#generatedInputRight-' + companyId).empty();
+
+                $.ajax({
+                    url: "{{ url_for('main.get_progress_exec', company_id='')}}" + companyId,
+                    type: 'GET',
+                    success: function (data) {
+                        // Check if data.remarks is not empty
+                        console.log('companyId:', companyId);
+                        console.log('data.period_target:', data.period_target);
+                        var period_targetc = JSON.parse(data.period_target);
+
+                        console.log('data.period_targetc:', period_targetc);
+                        var progress_exec_value = "";
+                        if (data.period_target) {
+                            for (var key in period_targetc) {
+                                var value = period_targetc[key];
+                                if (value !== "") {
+                                    var mappedKey = period_keyMapping[key] || key; // 使用映射表中的替代键，如果不存在则保持原样
+                                    mappedKey = mappedKey = mappedKey + ': ' + value;
+                                    if (data.progress_exec) {
+                                        var progress_exec = JSON.parse(data.progress_exec);
+                                        console.log('data.progress_exec:', data.progress_exec);
+                                        for (var progress_exec_key in progress_exec) {
+                                            if (progress_exec_key === key) {
+                                                progress_exec_value = progress_exec[key];
+                                                break;
+                                            }
+                                        }
+                                        if (["input_check1", "input_check2", "input_check3", "input_check4"].includes(key)) {
+                                            generateInputBox(mappedKey, document.getElementById('generatedInputLeft-' + companyId), 'custom-container', key, progress_exec_value);
+                                        } else if (["input_optional_check1", "input_optional_check2", "input_optional_check3", "input_optional_check4"].includes(key)) {
+                                            generateInputBox(mappedKey, document.getElementById('generatedInputRight-' + companyId), 'custom-container', key, progress_exec_value);
+                                        }
+                                    } else {
+                                        if (["input_check1", "input_check2", "input_check3", "input_check4"].includes(key)) {
+                                            generateInputBox(mappedKey, document.getElementById('generatedInputLeft-' + companyId), 'custom-container', key, progress_exec_value);
+                                        } else if (["input_optional_check1", "input_optional_check2", "input_optional_check3", "input_optional_check4"].includes(key)) {
+                                            generateInputBox(mappedKey, document.getElementById('generatedInputRight-' + companyId), 'custom-container', key, progress_exec_value);
+                                        }
+                                    }
+                                }
+                                // Populate other fields if needed
+                            }
+                        }
+                    }
+                });
+
+                // Set the company_id input value before serializing the form data
+
+                $('#remarksModal' + companyId).modal('show');
+
+            });
+
+
+            // 表单提交事件在外部处理
+            $('form[id^="remarksForm"]').submit(function (e) {
+                var companyId = $(this).data('company-id');
+
+                // Include the current page number in the form data
+                $('#remarksModal' + currentCompanyId).modal('hide');
+                var formData = {};
+                $(this).find('select').each(function () {
+                    formData[$(this).attr('name')] = $(this).val();
+                });
+
+                // 添加其他需要提交的表单数据
+                formData['company_id'] = companyId;
+                formData['current_page'] = currentPage;
+                $('#loadingModal').modal('show');
+                // AJAX request to save company remarks
+                console.log(formData);
+                $.ajax({
+                    url: "/save_progress_exec",
+                    type: 'POST',
+                    data: formData,  // Serialize the form data
+
+                    success: function (response) {
+                        // Handle the success response if needed
+                        console.log(response);
+                        $('#remarksModal' + currentCompanyId).modal('hide');  // 使用 currentCompanyId
+                        // Hide loading spinner or modal when the request is complete
+
+                        location.reload();
+                        setTimeout(function () {
+                            $('#loadingModal').modal('hide');
+                        }, 3000);
+                        {#$('#loadingModal').modal('hide');#}
+                        // Display success message
+                        // alert('处理成功');
+                    },
+                    error: function (error) {
+                        // Handle the error response if needed
+                        console.error(error);
+
+                        // Hide loading spinner or modal on error
+                        $('#loadingModal').modal('hide');
+                        $('#remarksModal' + currentCompanyId).modal('hide');  // 使用 currentCompanyId
+
+                        // Display an error message
+                        alert('处理失败');
+                    }
+                });
+                // Prevent the default form submission
+                e.preventDefault();
+            });
+
+
+            $('.progress-modal').click(function () {
+                currentCompanyId = $(this).data('company-id');
+                var companyId = currentCompanyId;
+
+
+                document.getElementById("progress_description" + currentCompanyId).value = "";
+
+
+                $.ajax({
+                    url: "{{ url_for('main.get_progress_exec', company_id='') }}" + companyId,
+                    type: 'GET',
+                    success: function (data) {
+
+                        // 将progress_description和progress_remark填充到textarea中
+                        $('#progress_description' + currentCompanyId).val(data.progress_description);
+                    }
+                });
+                $('#progressModal' + companyId).modal('show');
+
+            });
+
+
+            $('.presales_remark_modal').click(function () {
+                currentCompanyId = $(this).data('company-id');
+                var companyId = $(this).data('company-id');
+
+
+                document.getElementById("presales_remark" + currentCompanyId).value = "";
+
+
+                $.ajax({
+                    url: "{{ url_for('main.get_progress_exec', company_id='') }}" + currentCompanyId,
+                    type: 'GET',
+                    success: function (data) {
+                        // 将progress_description和progress_remark填充到textarea中
+                        $('#presales_remark' + currentCompanyId).val(data.presales_remark);
+                    }
+                });
+                $('#presalesremarkModal' + companyId).modal('show');
+            });
+
+            {#售前备注#}
+
+
+            $('form[id^="progressForm"]').submit(function (e) {
+                // Prevent the default form submission
+                $('#progressModal' + currentCompanyId).modal('hide');
+                // Get the company_id from data attribute
+                var companyId = $(this).data('company-id');
+                // Show the loading modal
+                $('#loadingModal').modal('show');
+
+                // Serialize the form data
+                var formData = $(this).serializeArray();
+
+                // Add company_id to form data
+                formData.push({name: 'company_id', value: companyId});
+
+                // Submit the form using AJAX
+                $.ajax({
+                    {#url: $(this).attr('action'),#}
+                    url: "/save_progress_description",
+                    type: 'POST',
+                    data: formData,
+                    success: function (response) {
+
+                        $('#progressForm' + companyId).modal('hide');
+                        location.reload();
+                        // Hide the loading modal on success
+                        $('#loadingModal').modal('hide');
+                        // Other actions...
+                    },
+                    error: function (error) {
+                        console.error(error);
+                        // Hide the loading modal on error
+                        $('#loadingModal').modal('hide');
+                        $('#progressForm' + companyId).modal('hide');
+                        // Other actions...
+                    }
+                });
+            });
+
+
+            {#售前备注from#}
+            $('form[id^="presalesremarkForm"]').submit(function (e) {
+                // Prevent the default form submission
+                e.preventDefault();
+                $('#presalesremarkModal' + currentCompanyId).modal('hide');
+                // Get the company_id from data attribute
+                var companyId = $(this).data('company-id');
+
+                // Show the loading modal
+                $('#loadingModal').modal('show');
+
+                // Serialize the form data
+                var formData = $(this).serializeArray();
+
+                // Add company_id to form data
+                formData.push({name: 'company_id', value: companyId});
+
+                // Submit the form using AJAX
+                $.ajax({
+                    {#url: $(this).attr('action'),#}
+                    url: "/save_progress_description",
+                    type: 'POST',
+                    data: formData,
+                    success: function (response) {
+
+                        $('#presalesremarkForm' + companyId).modal('hide');
+                        location.reload();
+                        // Hide the loading modal on success
+                        $('#loadingModal').modal('hide');
+                        // Other actions...
+                    },
+                    error: function (error) {
+                        console.error(error);
+                        // Hide the loading modal on error
+                        $('#loadingModal').modal('hide');
+                        $('#presalesremarkForm' + companyId).modal('hide');
+                        // Other actions...
+                    }
+                });
+            });
+
+
+            function generateInputBox(labelName, container, customClass, key, selectedValue) {
+                // 创建包含输入框和标签的容器
+
+                var containerDiv = document.createElement('div');
+                containerDiv.setAttribute('class', 'input-group mb-3 ' + customClass); // 添加额外的自定义类// 添加额外的类custom-container
+
+
+                // 创建标签元素
+                var label = document.createElement('label');
+                label.setAttribute('class', 'input-group-text custom-label');
+                label.setAttribute('style', 'width: 400px;');
+                label.setAttribute('for', 'inputGroupSelect01');
+                label.textContent = labelName; // 设置标签的文本内容
+
+                // 创建选择框元素
+                var select = document.createElement('select');
+                select.setAttribute('class', 'form-select target-select');
+                select.setAttribute('id', 'inputGroupSelect01');
+                select.setAttribute('name', key)
+
+
+                // 添加默认选项
+                var defaultOption = document.createElement('option');
+                defaultOption.setAttribute('selected', '');
+                defaultOption.textContent = '未开始';
+                select.appendChild(defaultOption);
+
+                // 添加其他选项（这里示例添加两个选项）
+                var option1 = document.createElement('option');
+                option1.textContent = "进行中";
+                select.appendChild(option1);
+
+                var option2 = document.createElement('option');
+                option2.textContent = "已完成";
+                select.appendChild(option2);
+
+                if (selectedValue === "进行中") {
+                    option1.setAttribute('selected', 'true');
+                } else if (selectedValue === "已完成") {
+                    option2.setAttribute('selected', 'true');
+                } else {
+                    defaultOption.setAttribute('selected', 'true');
+                }
+
+                // 将标签和选择框添加到容器中
+                containerDiv.appendChild(label);
+                containerDiv.appendChild(select);
+
+                // 将容器添加到指定的父容器中
+                container.appendChild(containerDiv);
+            }
+
+            function toggleCheckbox(checkboxId) {
+                var checkbox = document.getElementById(checkboxId);
+                checkbox.click();
+            }
+
+            // 获取所有的复选框
+            var checkboxes = document.querySelectorAll('.form-check-input');
+
+            // 遍历复选框
+            checkboxes.forEach(function (checkbox) {
+                // 添加事件监听器
+                checkbox.addEventListener('change', function () {
+                    var inputId = 'input_' + this.id; // 为输入框创建唯一标识符
+
+                    // 确定所属的下拉菜单
+                    var dropdownMenu = this.closest('.dropdown-menu');
+
+                    // 根据所属的下拉菜单选择对应的容器
+                    var generatedInputContainer;
+                    if (dropdownMenu.classList.contains('dropdown-menu-left')) {
+                        generatedInputContainer = document.getElementById('generatedInputLeft_' + currentCompanyId); // 添加公司ID后缀
+                    } else {
+                        generatedInputContainer = document.getElementById('generatedInputRight_' + currentCompanyId); // 添加公司ID后缀
+                    }
+
+                    // 如果复选框被选中
+                    if (this.checked) {
+                        // 获取相邻的 label 元素的文本作为标题
+                        var labelName = this.nextElementSibling.textContent.trim();
+
+                        // 创建一个包含标题和输入框的 div 元素
+                        var containerDiv = document.createElement('div');
+                        containerDiv.setAttribute('class', 'input-group input-group-lg mt-2');
+
+                        // 创建 label 元素作为标题
+                        {#var label = document.createElement('label');#}
+                        {#label.setAttribute('class', 'input-group-text');#}
+                        {#label.textContent = labelName; // 使用获取的标题文本#}
+
+
+                        var label = document.createElement('label');
+                        label.setAttribute('class', 'input-group-text');
+
+
+                        var pElement = document.createElement('p');
+                        pElement.setAttribute('class', 'largeText');
+                        pElement.textContent = labelName;  // 设置 <p> 的文本内容
+
+
+                        label.appendChild(pElement);
+
+                        // 创建输入框元素
+                        var input = document.createElement('input');
+                        input.setAttribute('type', 'text');
+                        input.setAttribute('class', 'form-control');
+                        input.setAttribute('name', inputId);
+                        input.setAttribute('id', inputId); // 设置输入框的 id
+                        input.setAttribute('placeholder', 'Enter value');
+
+                        // 将 label 和输入框添加到容器中
+                        containerDiv.appendChild(label);
+                        containerDiv.appendChild(input);
+
+                        // 将容器添加到存放容器中
+                        generatedInputContainer.appendChild(containerDiv);
+                    } else {
+                        // 如果复选框未选中，则移除对应的输入框及其标题
+                        var generatedInput = generatedInputContainer.querySelector('#' + inputId);
+                        if (generatedInput) {
+                            // 移除输入框
+                            generatedInput.parentElement.remove();
+                        }
+                    }
+                });
+            });
+
+            $('#remarksModal' + currentCompanyId).on('hidden.bs.modal', function (e) {
+                // 选择并清空左容器
+                $('#leftContainer_' + currentCompanyId).empty();
+
+                // 选择并清空右容器
+                $('#rightContainer_' + currentCompanyId).empty();
+            });
+
+
+        });
+
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // 获取所有的单选按钮
+            var radioButtons = document.querySelectorAll('.btn-group.right-align.scale-search input[type="radio"]');
+            const hiddenBtnradio = document.getElementById('hidden_btnradio');
+            const persaler_list_value = "{{ persaler_list_value }}";  // 从模板获取值
+
+            // 设置 hiddenBtnradio 的值
+            hiddenBtnradio.value = persaler_list_value;
+            const btnradio1 = document.getElementById('btnradio1');
+            const btnradio2 = document.getElementById('btnradio2');
+            const btnradio3 = document.getElementById('btnradio3');
+
+            // 为每个单选按钮添加事件监听器
+            radioButtons.forEach(function (button) {
+                button.addEventListener('change', function () {
+                    var selectedValue = this.id;  // 获取选中的单选按钮的ID
+                    console.log("发送到服务器的请求:", selectedValue);
+                    const formData = new FormData();
+                    formData.append('selectedValue', selectedValue);
+                    fetch('/update_scale', {
+                        method: 'POST',
+                        body: formData
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log(data);
+                            if (data.success) {
+                                // 成功后，重定向到客服协助跟进表页面
+                                window.location.href = "{{ url_for('main.presales_followup') }}";
+                            }
+                        })
+                        .catch((error) => {
+                            console.error('Error:', error);
+                        });
+                });
+            });
+
+
+            btnradio1.addEventListener('change', function () {
+                if (this.checked) {
+                    hiddenBtnradio.value = '';
+                }
+            });
+
+            btnradio2.addEventListener('change', function () {
+                if (this.checked) {
+                    hiddenBtnradio.value = 'w';
+                }
+            });
+
+            btnradio3.addEventListener('change', function () {
+                if (this.checked) {
+                    hiddenBtnradio.value = 's';
+                }
+            });
+        });
+
+
+        function confirmClaim(type, companyId, customer_id) {
+            if (confirm("确定要认领此公司吗？")) {
+                // 如果用户点击了“确定”，执行您的代码
+                console.log("用户确认认领");
+
+                $.ajax({
+                    url: "/update_customer",
+                    type: 'POST',
+                    data: {
+                        'company_id': companyId,
+                        'type': type,
+                        'customer_id': customer_id
+                    },
+                    success: function (response) {
+                        location.reload();
+
+                    },
+                    error: function (error) {
+                        console.error(error);
+                        alert('处理失败');
+                    }
+                });
+
+            } else {
+                // 如果用户点击了“取消”，可以选择不执行任何操作或者添加相应的逻辑
+                console.log("用户取消认领");
+            }
+        }
+
+
+    </script>
+    {#        <script>#}
+    {#    // 这里只解释新增的配置字段其余的可以看laydate的文档#}
+    {#    // js源码注释里有新增的内置字段说明#}
+    {#    // 范围选择器新增便捷筛选输出格式为日期时候选择年份返回 第一个月份的第一天跟第二个月份的最后一天#}
+    {#    // 如果已经有值存在默认选中日期搜索#}
+    {#     var yearda = laydate.render({#}
+    {#        elem: '.laydate_year',#}
+    {#        eventElem: '.layicon',#}
+    {#        trigger: 'click',#}
+    {#        theme: 'double-red',//我改成了蓝色(有需要直接改css就可以了或者新建一个主题)#}
+    {#        type: 'year',#}
+    {#        value: '2021',#}
+    {#        newType: 'year',//新增的配置字段 表示输出格式 month(月) date(日期) year(年)#}
+    {#        btns: [],//设置为空#}
+    {#        ready: function (date) {#}
+    {#            $("#layui-laydate1").off('click').on('click', '.laydate-year-list li', function () {#}
+    {#                $("#layui-laydate1").remove();#}
+    {#            });#}
+    {#        },#}
+    {#        change: function (value, date, edate) {#}
+    {#            $('.laydate_year').val(value)#}
+    {#        }#}
+    {#    });#}
+    {#    var m1da = laydate.render({#}
+    {#        elem: '.laydate_m1',#}
+    {#        eventElem: '.laydate_m1_fa .layicon',#}
+    {#        theme: 'double-red',#}
+    {#        trigger: 'click',#}
+    {#        newType: 'month',#}
+    {#        btns: [],#}
+    {#        type: 'month',#}
+    {#        btns: [],#}
+    {#        ready: function (date) {#}
+    {#            $("#layui-laydate2").off('click').on('click', '.laydate-month-list li', function () {#}
+    {#                $("#layui-laydate2").remove();#}
+    {#            });#}
+    {#        },#}
+    {#        change: function (value, date, edate) {#}
+    {#            $('.laydate_m1').val(value)#}
+    {#        }#}
+    {#    });#}
+    {#    var m2daconfig = laydate.render({#}
+    {#        elem: '.laydate_m2',#}
+    {#        eventElem: '.laydate_m2_fa .layicon',#}
+    {#        theme: 'type-ym',#}
+    {#        trigger: 'click',#}
+    {#        btns: [],#}
+    {#        type: 'date',#}
+    {#        newType: 'date',#}
+    {#    });#}
+    {#    var m3daconfig = laydate.render({#}
+    {#        elem: '.laydate_m3',#}
+    {#        eventElem: '.laydate_m3_fa .layicon',#}
+    {#        theme: 'type-ym',#}
+    {#        trigger: 'click',#}
+    {#        btns: [],#}
+    {#        type: 'date',#}
+    {#        newType: 'date',#}
+    {#        range: true,#}
+    {#        change: function (value, date, edate) {#}
+    {#            $('.input-group-text me-2 laydate_m3').val(value);#}
+    {#            $("#layui-laydate4").remove();#}
+    {#        }#}
+    {#    });#}
+    {#    var m4daconfig = laydate.render({#}
+    {#        elem: '.laydate_m4',#}
+    {#        eventElem: '.laydate_m4_fa .layicon',#}
+    {#        theme: 'type-ym',#}
+    {#        trigger: 'click',#}
+    {#        btns: [],#}
+    {#        type: 'month',#}
+    {#        newType: 'month',#}
+    {#        range: true,#}
+    {#        change: function (value, date, edate) {#}
+    {#            $('.laydate_m4').val(value);#}
+    {#        }#}
+    {#    });#}
+    {##}
+    {##}
+    {#</script>#}
+
+    <script>
+        $(function () {
+            var locale = {
+                "format": 'YYYY-MM-DD',
+                "separator": " - ",
+                "applyLabel": "确定",
+                "cancelLabel": "取消",
+                "fromLabel": "起始时间",
+                "toLabel": "结束时间'",
+                "customRangeLabel": "自定义",
+                "weekLabel": "W",
+                "daysOfWeek": ["日", "一", "二", "三", "四", "五", "六"],
+                "monthNames": ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"],
+                "firstDay": 1
+            };
+            $('#demo').daterangepicker({
+                'locale': locale,
+                ranges: {
+                    '今日': [moment(), moment()],
+                    '昨日': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+                    '最近7日': [moment().subtract(6, 'days'), moment()],
+                    '最近30日': [moment().subtract(29, 'days'), moment()],
+                    '本月': [moment().startOf('month'), moment().endOf('month')],
+                    '上月': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month')
+                        .endOf('month')
+                    ]
+                },
+                "alwaysShowCalendars": true,
+                "startDate": new Date(),
+                "endDate": new Date(),
+                "opens": "right",
+            }, function (start, end, label) {
+                console.log('New date range selected: ' + start.format('YYYY-MM-DD') + ' to ' + end.format('YYYY-MM-DD') + ' (predefined range: ' + label + ')');
+            });
+        })
+    </script>
+    <style>
+        input {
+            height: 40px;
+            line-height: 40px;
+            text-align: center;
+        }
+
+        .btn-default {
+            background-color: #fff;
+            border: 1px solid #828080;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background-color: #08c;
+            border: 1px solid #08c;
+            border-radius: 3px;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            background-color: #357ebd;
+        }
+    </style>
+
+<script>
+demo.addEventListener()
+
+</script>
+
+
+{% endblock %}

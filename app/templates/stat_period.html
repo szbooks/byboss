@@ -1,0 +1,82 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+    <div class="content-area">
+        <!-- 顶部操作栏 -->
+        <div class="d-flex align-items-center flex-wrap mb-3">
+            <form id="company-form" action="{{ url_for('main.stat_period') }}" method="get" class="d-flex align-items-center mb-2 flex-grow-0">
+            {#    <div class="row">#}
+
+            <select class="form-select me-2" name="custom_type" id="account_status">
+                    <option value=''>客户类型</option>
+                    <option value="w" {% if status_filter['custom_type'] == 'w' %}selected{% endif %}>30套以上</option>
+                    <option value="s" {% if status_filter['custom_type'] == 's' %}selected{% endif %}>10套至30套</option>
+                    <option value="m" {% if status_filter['custom_type'] == 'm' %}selected{% endif %}>10套以下</option>
+            </select>
+            <!-- Move the button inside the input group -->
+            <button type="submit" class="btn btn-outline-primary fixed-width-btn">查询</button>
+
+        </form>
+        </div>
+        <table class="table table-striped table-bordered table-light table-hover">
+            <thead>
+            <tr>
+                <th>客户类型</th>
+                <th>统计月份</th>
+                <th>总数</th>
+                <th>待续费</th>
+                <th>已续费</th>
+                <th>已过期</th>
+                <th>未激活</th>
+                <th>特殊数据（计入续费）</th>
+                <th>续费比</th>
+                <th>流失率</th>
+                <th>未激活（除以总数）</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for row in results %}
+                <tr>
+                    <td>
+                        {% if row.custom_type == 'w' %}
+                            30套以上
+                        {% elif row.custom_type == 's' %}
+                            10套至30套
+                        {% elif row.custom_type == 'm' %}
+                            10套以下
+                        {% else %}
+                            {{ "" }}
+                        {% endif %}
+                    </td>
+                    <td>{{ row.idx_data }}</td>
+                    <td>{{ row.sumcount }}</td>
+                    <td>{{ row.no_Renewal }}</td>
+                    <td>{{ row.renew_stat }}</td>
+                    <td>{{ row.expire_stat }}</td>
+                    <td>{{ row.noactive_stat }}</td>
+                    <td>{{ row.special_stat }}</td>
+                    <td>{{ row.Renewal_ratio }}</td>
+                    <td>{{ row.Loss_rate }}</td>
+                    <td>{{ row.noactive_rate }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <!-- 底部分页控件 -->
+        <nav aria-label="Page navigation" class="d-flex justify-content-end pagination-container">
+            <ul class="pagination pagination-sm">
+                <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('main.stat_period', page=page-1) }}">上一页</a>
+                </li>
+                {% for num in range(1, total_pages + 1) %}
+                    <li class="page-item {% if num == page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('main.stat_period', page=num) }}">{{ num }}</a>
+                    </li>
+                {% endfor %}
+                <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('main.stat_period', page=page+1) }}">下一页</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+{% endblock %}

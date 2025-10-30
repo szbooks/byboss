@@ -1,0 +1,34 @@
+{#<nav class="navbar navbar-expand-lg navbar-dark bg-primary">#}
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top">
+    <div class="container-fluid">
+        <a class="navbar-brand"  id="navbarBrand" href="{{ url_for('main.index') }}">宝寓BOSS</a>
+
+{#    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>#}
+     <div class="d-none d-lg-block"  title="点击可伸缩侧边栏">
+            <button  type="button" id="sidebarToggleButton" style="margin-left: 0px;">
+                <img src="/static/image/fold.png" id="sidfold" width="24px" alt="Menu Icon">
+            </button>
+        </div>
+
+
+{#    <span class="wrap-ellipsis" data-bs-toggle="tooltip" data-bs-placement="top" data-full-content="{{ result.companys }}" title="点击可复制">{{ result.companys|default('', true) }}</span>#}
+{#    <img src="/static/image/icon-menu-24px-x2.png" width="24px" alt="Menu Icon">#}
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                {% if session['user_id'] %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            欢迎, {{ session['username'] }}
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                            <li><a class="dropdown-item" href="{{ url_for('main.account_modify_password') }}">修改密码</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('main.logout') }}">退出</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item"><a class="nav-link" href="#">我的任务({{ task_count }})</a></li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</nav>

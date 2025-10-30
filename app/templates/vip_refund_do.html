@@ -1,0 +1,548 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+
+
+
+    <div class="container">
+        <!-- 添加enctype="multipart/form-data" -->
+        <form action="{{ url_for('main.do_vip_refund', id=resultid.id) }}"
+              method="post"
+              enctype="multipart/form-data"
+              id="doForm">
+
+            {% if resultid.status==2 or resultid.status==3 %}
+                <div class="row mb-3">
+                    <div class="col-1">公司ID:</div>
+                    <div class="col-5">{{ resultid.company_id }}</div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-1">联系电话:</div>
+                    <div class="col-5">{{ resultid.phone }}</div>
+                </div>
+
+                <div class="row mb-3">
+                    <label for="phone" class="col-sm-1 col-form-label">退款金额：</label>
+                    <div class="col-sm-5">
+                        <input type="text" class="form-control" id="price" value="{{ resultid.price|default('', true) }}" name="price">
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-1">申请事项:</div>
+                    <div class="col-5">{{ resultid.content }}</div>
+
+                </div>
+
+                <!-- 证件上传 -->
+                <div class="row mb-3">
+                    <label class="col-sm-1 col-form-label">证件图片：</label>
+                    <div class="col-sm-5">
+                        <div class="image-upload-container">
+                            <div class="image-upload-box">
+                                <input type="file" id="idBackInput" name="id_back_image" accept="image/*" style="display:none;">
+                                <input type="hidden" name="existing_image" value="{{ resultid.image_data if resultid.image_data else '' }}">
+
+                                <div class="preview-wrapper" id="idBackWrapper" style="{{ 'display:block;' if resultid.image_data else 'display:none;' }}">
+                                    <div class="loading-spinner"></div>
+                                    <img id="idBackPreview"
+                                         src="{{ url_for('main.uploaded_file', filename=resultid.image_data) if resultid.image_data else '#' }}"
+                                         alt="证件图片预览"
+                                         style="max-height: 200px;">
+                                    <span class="delete-btn">×</span>
+                                </div>
+
+                                <div id="idBackPlaceholder" class="upload-placeholder" style="{{ 'display:flex;' if not resultid.image_data else 'display:none;' }}">
+                                    <i class="bi bi-card-image fs-5 text-muted"></i>
+                                    <p class="mb-0 small text-muted">上传图片</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-1">处理意见:</div>
+                    <div class="col-5">{{ resultid.final_plan|default('已处理', true) }}</div>
+                </div>
+
+            {% else %}
+                <div class="row mb-3">
+                    <label for="phone" class="col-sm-1 col-form-label">公司id：</label>
+                    <div class="col-sm-5">
+                        <input type="text" class="form-control" id="company_id" value="{{ resultid.company_id|default('', true) }}" name="company_id" required>
+                    </div>
+                </div>
+
+                <!-- 联系电话 -->
+                <div class="row mb-3">
+                    <label for="phone" class="col-sm-1 col-form-label">联系电话：</label>
+                    <div class="col-sm-5">
+                        <input type="tel" class="form-control" id="phone" name="phone" value="{{ resultid.phone|default('', true) }}" pattern="(\+?\d[- .]*){7,13}">
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <label for="phone" class="col-sm-1 col-form-label">退款金额：</label>
+                    <div class="col-sm-5">
+                        <input type="text" class="form-control" id="price" value="{{ resultid.price|default('', true) }}" name="price">
+                    </div>
+                </div>
+
+                <!-- 支付类型单选按钮组 -->
+<div class="row mb-3">
+    <label class="col-sm-1 col-form-label">退费类型：<span class="text-danger">*</span></label>
+    <div class="col-sm-5">
+        <div class="btn-group" role="group">
+            <!-- VIP费用选项 -->
+            <input type="radio" class="btn-check" name="payment_type" id="payment_vip" value="vip"
+                   {% if resultid.payment_type == 'vip' %}checked{% endif %} required>
+            <label class="btn btn-outline-secondary payment-type-btn {% if resultid.payment_type == 'vip' %}active{% endif %}"
+                   for="payment_vip">VIP费用</label>
+
+            <!-- 短信费用选项 -->
+            <input type="radio" class="btn-check" name="payment_type" id="payment_sms" value="sms"
+                   {% if resultid.payment_type == 'sms' %}checked{% endif %}>
+            <label class="btn btn-outline-secondary payment-type-btn {% if resultid.payment_type == 'sms' %}active{% endif %}"
+                   for="payment_sms">短信费用</label>
+        </div>
+    </div>
+</div>
+
+<!-- 添加隐藏字段存储当前支付类型 -->
+<input type="hidden" id="current_payment_type" value="{{ payment_type }}">
+
+
+                <div class="row mb-3">
+                    <div class="col-1">申请事项:</div>
+                    <div class="col-5">{{ resultid.content }}</div>
+                </div>
+
+                <!-- 证件上传 -->
+                <div class="row mb-3">
+                    <label class="col-sm-1 col-form-label">支付凭证：</label>
+                    <div class="col-sm-5">
+                        <div class="image-upload-container">
+                            <div class="image-upload-box">
+                                <input type="file" id="idBackInput" name="id_back_image" accept="image/*" style="display:none;">
+                                <input type="hidden" name="existing_image" value="{{ resultid.image_data if resultid.image_data else '' }}">
+
+                                <div class="preview-wrapper" id="idBackWrapper" style="{{ 'display:block;' if resultid.image_data else 'display:none;' }}">
+                                    <div class="loading-spinner"></div>
+                                    <img id="idBackPreview"
+                                         src="{{ url_for('main.uploaded_file', filename=resultid.image_data) if resultid.image_data else '#' }}"
+                                         alt="证件图片预览"
+                                         style="max-height: 200px;">
+                                    <span class="delete-btn">×</span>
+                                </div>
+
+                                <div id="idBackPlaceholder" class="upload-placeholder" style="{{ 'display:flex;' if not resultid.image_data else 'display:none;' }}">
+                                    <i class="bi bi-card-image fs-5 text-muted"></i>
+                                    <p class="mb-0 small text-muted">上传支付凭证</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+
+                <div class="row mb-3">
+                    <label for="todo_remark" class="col-1 col-form-label">处理意见:</label>
+                    <div class="col-5">
+                        <textarea class="form-control" id="final_plan" name="final_plan" style="height: 150px">{{ resultid.final_plan|default('已处理', true) }}</textarea>
+                    </div>
+                </div>
+
+            {% endif %}
+
+
+            <div class="row mb-3">
+                <label for="todo_remark" class="col-1 col-form-label">备注:</label>
+                <div class="col-5">
+                    <textarea class="form-control" id="todo_remark" name="todo_remark" style="height: 150px">{{ resultid.todo_remark|default('', true) }}</textarea>
+                </div>
+            </div>
+
+
+            <div class="row">
+                <div class="col-12">
+                    {% if resultid.status==1 or resultid.status==5 %}
+                        <button type="submit" name="action" value="completed" class="btn btn-success me-2" id="communicated-button">提交处理</button>
+                        <button type="submit" name="action" value="save" class="btn btn-outline-primary me-2" id="save-button">保存草稿</button>
+                    {% endif %}
+
+                    {% if resultid.status==2 or resultid.status==3 %}
+                        <button type="submit" name="action" value="save_remark" class="btn btn-outline-primary me-2" id="save-button">保存备注</button>
+                    {% endif %}
+
+                    <!-- 只是保存按钮 -->
+
+                    {% if resultid.status==1 or resultid.status==4 %}
+                        <button type="submit" name="action" value="reject" class="btn btn-danger me-2" id="reject-button">拒绝处理</button>
+                    {% endif %}
+                    <a href="{{ url_for('main.vip_refund') }}" class="btn btn-secondary">取消</a>
+                </div>
+            </div>
+        </form>
+
+    </div>
+
+
+<!-- 修改图片放大Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-0 position-absolute top-0 end-0 z-3">
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body d-flex align-items-center justify-content-center p-0">
+                <img id="modalImage" src="" class="img-fluid" style="max-height: 100vh; object-fit: contain;" alt="全屏图片">
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+    <style>
+        .image-upload-container {
+            border: 1px dashed #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            background: #f9f9f9;
+        }
+
+        .image-upload-box {
+            position: relative;
+            min-height: 150px;
+        }
+
+        .preview-wrapper {
+            position: relative;
+            text-align: center;
+        }
+
+        .loading-spinner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top-color: #007bff;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: translate(-50%, -50%) rotate(0deg);
+            }
+            100% {
+                transform: translate(-50%, -50%) rotate(360deg);
+            }
+        }
+
+        .delete-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 24px;
+            height: 24px;
+            background: rgba(255, 0, 0, 0.7);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .upload-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 150px;
+            color: #6c757d;
+            cursor: pointer;
+        }
+
+        .img-thumbnail {
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 4px;
+            background-color: #fff;
+        }
+
+        /* 原有CSS样式保持不变... */
+        .img-thumbnail:hover, #idBackPreview:hover {
+            opacity: 0.9;
+            box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+            cursor: zoom-in;
+        }
+
+        /* 新增全屏模态框样式 */
+    #imageModal .modal-dialog {
+        max-width: 100%;
+        margin: 0;
+        height: 100vh;
+    }
+
+    #imageModal .modal-content {
+        background-color: rgba(0, 0, 0, 0.9);
+        border: none;
+        border-radius: 0;
+        height: 100%;
+    }
+
+    #imageModal .modal-body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    #imageModal .modal-footer {
+        border-top: none;
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+    }
+
+    #modalImage {
+        max-height: 90vh;
+        max-width: 90vw;
+        object-fit: contain;
+        transition: transform 0.3s;
+    }
+
+    #modalImage.zoomed {
+        transform: scale(1.5);
+    }
+
+
+    #imageModal .btn-close {
+    font-size: 1.5rem;
+    opacity: 0.8;
+    filter: invert(1);
+    margin-right: 1rem;
+    margin-top: 1rem;
+}
+
+#imageModal .btn-close:hover {
+    opacity: 1;
+    transform: scale(1.1);
+    transition: all 0.2s ease;
+}
+
+/* 确保按钮在最上层 */
+#imageModal .modal-header {
+    z-index: 1000;
+}
+
+/* 模态框背景优化 */
+#imageModal .modal-content {
+    background-color: rgba(0,0,0,0.9);
+}
+
+
+            /* 初始状态 - 浅灰色 */
+        .payment-type-btn {
+            background-color: #f8f9fa;
+            border-color: #dee2e6;
+            color: #6c757d;
+        }
+
+        /* 选中状态 - 蓝色 */
+        .btn-check:checked + .payment-type-btn {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+            color: white;
+        }
+
+        /* 悬停效果 */
+        .payment-type-btn:hover {
+            background-color: #e9ecef;
+            color: #495057;
+        }
+
+        /* 强制覆盖选中状态样式 */
+    .btn-check:checked + .payment-type-btn,
+    .payment-type-btn.active {
+        background-color: #0d6efd !important;
+        border-color: #0d6efd !important;
+        color: white !important;
+    }
+
+
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.getElementById('doForm');
+            const fileInput = document.getElementById('idBackInput');
+            const previewWrapper = document.getElementById('idBackWrapper');
+            const previewImg = document.getElementById('idBackPreview');
+            const placeholder = document.getElementById('idBackPlaceholder');
+            const deleteBtn = document.querySelector('.delete-btn');
+            const spinner = document.querySelector('.loading-spinner');
+            const submitButtons = form.querySelectorAll('button[type="submit"]');
+
+            const currentPaymentType = document.getElementById('current_payment_type').value;
+
+            // 初始化现有图片
+            const existingImage = document.querySelector('input[name="existing_image"]').value;
+            if (existingImage) {
+                previewImg.src = `/uploads/${existingImage}`;
+            }
+
+
+               // 如果存在当前支付类型，设置对应的单选按钮为选中状态
+    if (currentPaymentType) {
+        const radioBtn = document.querySelector(`input[name="payment_type"][value="${currentPaymentType}"]`);
+        if (radioBtn) {
+            radioBtn.checked = true;
+
+            // 更新按钮视觉状态（可选）
+            const label = document.querySelector(`label[for="${radioBtn.id}"]`);
+            label.classList.remove('btn-outline-secondary');
+            label.classList.add('btn-primary');
+        }
+    }
+
+            // 图片上传交互
+            placeholder.addEventListener('click', () => fileInput.click());
+
+            fileInput.addEventListener('change', function () {
+                if (this.files && this.files[0]) {
+                    const reader = new FileReader();
+                    spinner.style.display = 'block';
+                    placeholder.style.display = 'none';
+
+                    reader.onload = function (e) {
+                        previewImg.src = e.target.result;
+                        previewImg.onload = function () {
+                            spinner.style.display = 'none';
+                            previewWrapper.style.display = 'block';
+                        };
+                    };
+                    reader.readAsDataURL(this.files[0]);
+                }
+            });
+
+            deleteBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                fileInput.value = '';
+                previewImg.src = '#';
+                previewWrapper.style.display = 'none';
+                placeholder.style.display = 'flex';
+            });
+
+            // 表单提交处理（关键修复）
+            submitButtons.forEach(button => {
+                button.addEventListener('click', function (e) {
+                    e.preventDefault();
+
+                    // 禁用所有按钮并显示加载状态
+                    submitButtons.forEach(btn => {
+                        btn.disabled = true;
+                        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 处理中...';
+                    });
+
+                    // 获取正确的表单action URL
+                    const formAction = form.getAttribute('action');
+
+                    // 创建FormData对象
+                    const formData = new FormData(form);
+                    formData.set('action', this.value);
+
+                    // 发送请求
+                    fetch(formAction, {
+                        method: 'POST',
+                        body: formData
+                    })
+                        .then(response => {
+                            if (!response.ok) throw new Error('网络响应异常');
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (data.success) {
+                                window.location.href = data.redirect;
+                            } else {
+                                showError(data.message || '操作失败');
+                                resetButtons();
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            showError('请求失败: ' + error.message);
+                            resetButtons();
+                        });
+
+                    function resetButtons() {
+                        submitButtons.forEach(btn => {
+                            btn.disabled = false;
+                            // 恢复按钮原始文本
+                            const originalText =
+                                btn.value === 'completed' ? '提交处理' :
+                                    btn.value === 'save' ? '保存草稿' :
+                                        btn.value === 'reject' ? '拒绝处理' : '保存备注';
+                            btn.innerHTML = originalText;
+                        });
+                    }
+                });
+            });
+
+            // 显示错误提示
+            function showError(message) {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-danger position-fixed top-0 start-50 translate-middle-x mt-3';
+                alertDiv.style.zIndex = '9999';
+                alertDiv.textContent = message;
+                document.body.appendChild(alertDiv);
+
+                setTimeout(() => alertDiv.remove(), 5000);
+            }
+
+            // 在现有JS代码中添加（放在DOMContentLoaded事件监听器内）
+            document.querySelectorAll('.img-thumbnail, #idBackPreview').forEach(img => {
+                if (img.src && img.src !== '#') {
+                    img.addEventListener('click', function () {
+                        const modal = new bootstrap.Modal(document.getElementById('imageModal'));
+                        document.getElementById('modalImage').src = this.src;
+                        modal.show();
+                    });
+                }
+            });
+
+             document.addEventListener('click', function(e) {
+        // 检查点击的是否是预览图片
+        if (e.target.classList.contains('preview-image')) {
+            const modal = new bootstrap.Modal(document.getElementById('imageModal'));
+            document.getElementById('modalImage').src = e.target.src;
+            modal.show();
+        }
+    });
+        });
+    </script>
+
+        <script>
+        $(document).ready(function () {
+            // 为支付类型按钮添加点击效果
+            $('.payment-type-btn').click(function () {
+                // 移除所有按钮的active类
+                $('.payment-type-btn').removeClass('active');
+                // 为当前点击的按钮添加active类
+                $(this).addClass('active');
+            });
+        });
+    </script>
+
+{% endblock %}

@@ -1,0 +1,316 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+
+    <!-- 选项卡 -->
+    <ul class="nav nav-tabs" id="myTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="home-tab" data-bs-toggle="tab" data-bs-target="#home-tab-pane"
+                    type="button" role="tab" aria-controls="home-tab-pane" aria-selected="true">
+                初始化订单
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile-tab-pane"
+                    type="button" role="tab" aria-controls="profile-tab-pane" aria-selected="false">
+                操作日志
+            </button>
+        </li>
+    </ul>
+
+    <!-- 选项卡内容 -->
+    <div class="tab-content" id="myTabContent">
+
+        <!-- 初始化订单 -->
+        <div class="tab-pane fade show active" id="home-tab-pane" role="tabpanel" aria-labelledby="home-tab" tabindex="0">
+
+            <!-- 查询表单 -->
+            <form id="company-form" action="{{ url_for('main.initial_order') }}" method="get" class="d-flex align-items-center mb-2 flex-grow-0">
+                <input type="text" class="input-group-text me-2" name="company_id" placeholder="输入公司id"
+                       value="{{ request.args.get('company_id', '') }}" required>
+
+                <select class="form-select me-2 search_channel" name="channel" id="channel">
+                    <option value=''>请选择平台</option>
+                    <option value="Agoda" {% if request.args.get('channel') == 'Agoda' %}selected{% endif %}>Agoda</option>
+                    <option value="Airbnb" {% if request.args.get('channel') == 'Airbnb' %}selected{% endif %}>Airbnb</option>
+                    <option value="Alitrip" {% if request.args.get('channel') == 'Alitrip' %}selected{% endif %}>Alitrip</option>
+                    <option value="Booking" {% if request.args.get('channel') == 'Booking' %}selected{% endif %}>Booking</option>
+                    <option value="Ctrip" {% if request.args.get('channel') == 'Ctrip' %}selected{% endif %}>Ctrip</option>
+                    <option value="Dylife" {% if request.args.get('channel') == 'Dylife' %}selected{% endif %}>Dylife</option>
+                    <option value="Meituan" {% if request.args.get('channel') == 'Meituan' %}selected{% endif %}>Meituan</option>
+                    <option value="Muniao" {% if request.args.get('channel') == 'Muniao' %}selected{% endif %}>Muniao</option>
+                    <option value="Tujia" {% if request.args.get('channel') == 'Tujia' %}selected{% endif %}>Tujia</option>
+                    <option value="Xhsshop" {% if request.args.get('channel') == 'Xhsshop' %}selected{% endif %}>Xhsshop</option>
+                    <option value="Xiaozhu" {% if request.args.get('channel') == 'Xiaozhu' %}selected{% endif %}>Xiaozhu</option>
+                    <option value="Zhenguo" {% if request.args.get('channel') == 'Zhenguo' %}selected{% endif %}>Zhenguo</option>
+                    <option value="Xhsark" {% if request.args.get('channel') == 'Xhsark' %}selected{% endif %}>Xhsark</option>
+                </select>
+
+                <button type="submit" class="btn btn-outline-primary fixed-width-btn">查询直连账号</button>
+            </form>
+
+            <!-- 数据表格 -->
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered table-hover">
+                    <thead>
+                    <tr>
+                        <th>公司 ID</th>
+                        <th>平台</th>
+                        <th>账号 ID</th>
+                        <th>账号名</th>
+                        <th>别名</th>
+                        <th>操作</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% if results %}
+                        {% for result in results %}
+                            <tr>
+                                <td>{{ result.company_id|default('', true) }}</td>
+                                <td>{{ result.channel|default('', true) }}</td>
+                                <td style="color: red">{{ result.id|default('', true) }}</td>
+                                <td>{{ result.username|default('', true) }}</td>
+                                <td>{{ result.remark|default('', true) }}</td>
+                                <td>
+                                    <a href="#" class="confirm-link"
+                                       data-id="{{ result.id }}"
+                                       data-channel="{{ result.channel }}"
+                                       data-username="{{ result.username }}"
+                                       data-remark="{{ result.remark }}"
+                                       data-company-id="{{ result.company_id }}">
+                                        初始化订单
+                                    </a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                                    <a href="#" class="confirm-link"
+                                       data-id="{{ result.id }}"
+                                       data-channel="{{ result.channel }}"
+                                       data-username="{{ result.username }}"
+                                       data-remark="{{ result.remark }}"
+                                       data-company-id="{{ result.company_id }}"
+                                       style="color: peru">
+                                        强制初始化（有历史订单）
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center">暂无数据</td>
+                        </tr>
+                    {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 操作日志 -->
+        <div class="tab-pane fade" id="profile-tab-pane" role="tabpanel" aria-labelledby="profile-tab" tabindex="0">
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered table-hover">
+                    <thead>
+                    <tr>
+                        <th>时间</th>
+                        <th>操作类型</th>
+                        <th>操作人</th>
+                        <th>内容</th>
+                        <th>直连账号id</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% if log_results %}
+                        {% for result in log_results %}
+                            <tr>
+                                <td>{{ result.operation_time|default('', true) }}</td>
+                                <td>{{ result.operation_type|default('', true) }}</td>
+                                <td>{{ result.username|default('', true) }}</td>
+                                <td>{{ result.operation_desc|default('', true) }}</td>
+                                <td>{{ result.operation_id|default('', true) }}</td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center">暂无数据</td>
+                        </tr>
+                    {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            <!-- 底部分页控件 -->
+            <nav aria-label="Page navigation" class="d-flex justify-content-end pagination-container">
+                <ul class="pagination pagination-sm">
+                    <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('main.discounts', page=page-1) }}">上一页</a>
+                    </li>
+                    {% for num in range(1, total_pages + 1) %}
+                        <li class="page-item {% if num == page %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('main.discounts', page=num) }}">{{ num }}</a>
+                        </li>
+                    {% endfor %}
+                    <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('main.discounts', page=page+1) }}">下一页</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+
+
+    </div>
+
+    <!-- 确认对话框 -->
+    <div id="customConfirmDialog" class="modal fade" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg"> <!-- 添加 modal-lg 类 -->
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">初始化订单确认</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>确定要初始化以下账号的订单记录吗？</p>
+                    <ul>
+                        <li style="color: #dc3545"><strong>账号ID:</strong> <span id="dialogId"></span></li>
+                        <li><strong>公司ID:</strong> <span id="dialogcompanyid"></span></li>
+                        <li><strong>平台:</strong> <span id="dialogChannel"></span></li>
+                        <li><strong>账号名:</strong> <span id="dialogUsername"></span></li>
+                    </ul>
+                </div>
+                <span style="color: red; display: block; text-align: right; margin-right: 10px; margin-bottom: 10px;">
+                请先确认已登录宝寓后台
+            </span>
+                <div class="modal-footer">
+
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="confirmYes">开始初始化</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入 Bootstrap 脚本 -->
+    {#    <script src="https://cdn.staticfile.org/twitter-bootstrap/5.3.0-alpha1/js/bootstrap.bundle.min.js"></script>#}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            let currentData = null;
+            let isForceInitial = false; // 标记是否是强制初始化
+
+            // 绑定确认链接点击事件
+            document.querySelectorAll('.confirm-link').forEach(link => {
+                link.addEventListener('click', function (e) {
+                    e.preventDefault();
+
+                    // 判断是否是强制初始化
+                    isForceInitial = this.style.color === 'peru';
+
+                    // 获取数据属性
+                    currentData = {
+                        id: this.dataset.id,
+                        channel: this.dataset.channel,
+                        username: this.dataset.username,
+                        remark: this.dataset.remark,
+                        companyId: this.dataset.companyId
+                    };
+
+                    // 设置对话框内容
+                    document.getElementById('dialogId').textContent = currentData.id;
+                    document.getElementById('dialogChannel').textContent = currentData.channel;
+                    document.getElementById('dialogUsername').textContent = currentData.username;
+                    document.getElementById('dialogcompanyid').textContent = currentData.companyId;
+
+                    // 根据操作类型设置对话框标题和确认按钮文字
+                    const modalTitle = document.querySelector('#customConfirmDialog .modal-title');
+                    const confirmBtn = document.getElementById('confirmYes');
+
+                    if (isForceInitial) {
+                        modalTitle.textContent = '强制初始化订单确认';
+                        confirmBtn.textContent = '开始初始化';
+                        confirmBtn.classList.add('btn-danger');
+                        confirmBtn.classList.remove('btn-primary');
+                    } else {
+                        modalTitle.textContent = '初始化订单确认';
+                        confirmBtn.textContent = '开始初始化';
+                        confirmBtn.classList.add('btn-primary');
+                        confirmBtn.classList.remove('btn-danger');
+                    }
+
+                    // 显示对话框
+                    const modal = new bootstrap.Modal(document.getElementById('customConfirmDialog'));
+                    modal.show();
+                });
+            });
+
+            // 确认按钮点击事件
+            document.getElementById('confirmYes').addEventListener('click', function () {
+                if (currentData) {
+                    const confirmBtn = this;
+                    const originalText = confirmBtn.innerHTML;
+
+                    // 显示加载状态
+                    confirmBtn.disabled = true;
+                    confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 处理中...';
+
+                    // 构建URL，添加force参数
+                    const baseUrl = "{{ url_for('main.do_initial_order') }}";
+                    const forceParam = isForceInitial ? '&force=1' : '';
+                    const fullUrl = `${baseUrl}?company_id=${currentData.companyId}&id=${currentData.id}${forceParam}`;
+
+                    // 在新标签页中打开目标URL
+                    window.open(fullUrl, '_blank');
+
+                    // 隐藏对话框
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('customConfirmDialog'));
+                    modal.hide();
+
+                    // 恢复按钮状态
+                    setTimeout(() => {
+                        confirmBtn.disabled = false;
+                        confirmBtn.innerHTML = originalText;
+                    }, 1000);
+                }
+            });
+        });
+    </script>
+    <style>
+        /* 添加对话框动画效果 */
+        #customConfirmDialog {
+            animation: fadeIn 0.3s ease-out;
+            margin-top: -50px; /* 调整对话框上移的距离 */
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                top: 15%;
+            }
+            to {
+                opacity: 1;
+                top: 20%;
+            }
+        }
+
+        /* 标题栏样式增强 */
+        #customConfirmDialog > div:first-child {
+            color: #333;
+            font-size: 12px;
+        }
+
+        /* 内容区域样式 */
+        #customConfirmDialog > div:last-child {
+            font-size: 18px;
+            line-height: 1.5;
+        }
+
+        /* 加载动画样式 */
+        .fa-spinner {
+            margin-right: 5px;
+        }
+
+
+        /* 假设你的导航有一个特定的ID或类名，例如#myTab */
+        #myTab .nav-link {
+            width: 100px; /* 或任何你需要的宽度 */
+            text-align: center; /* 如果需要的话，让文本居中 */
+        }
+
+        #myTabContent {
+            margin-top: 5px;
+        }
+    </style>
+{% endblock %}

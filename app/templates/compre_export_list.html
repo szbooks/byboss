@@ -1,0 +1,214 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+    <div class="content-area">
+        <!-- 顶部操作栏 -->
+{#        <div class="d-flex align-items-center flex-wrap mb-3">#}
+{#            <!-- 操作按钮 -->#}
+{#            <a href="{{ url_for('main.add_vip_refund') }}" class="btn btn-primary me-2 mb-2">添加邀请码</a>#}
+{##}
+{#            <a href="#" class="btn btn-primary me-2 mb-2 baseedit-button" data-bs-toggle="modal" data-bs-target="#baseModal">添加邀请码</a>#}
+{##}
+{##}
+{##}
+{#            <!-- 查询表单 -->#}
+{#            <form action="{{ url_for('main.code_modify') }}" method="get" class="d-flex align-items-center mb-2 flex-grow-0">#}
+{#                <input type="text" class="input-group-text me-2" name="company_id" id="companyIdInput" placeholder="输入公司ID" value="{{ request.args.get('company_id', '') }}">#}
+{#                <input type="text" class="input-group-text me-2" name="code" placeholder="输入邀请码" value="{{ request.args.get('code', '') }}">#}
+{#                <button type="submit" class="btn btn-outline-primary" id="search_submit">查询</button>#}
+{#            </form>#}
+{#          </div>#}
+        <table class="table table-striped table-bordered table-light table-hover">
+            <thead>
+
+            <tr>
+                <th>项目</th>
+                <th>导出日期</th>
+                <th>备注</th>
+                <th>操作</th>
+
+
+            </tr>
+            </thead>
+            <tbody>
+            {% for result  in results %}
+                <tr>
+                    <td>{{ result.project|default('', true) }}</td>
+                    <td>{{ result.last_data|default('', true) }}</td>
+                    <td>{{ result.remark|default('', true) }}</td>
+                    <td>
+
+                        <a href="#" class="export-button" data-id="{{ result.id }}" >导出</a>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+ <!-- 编辑Modal -->
+    <div class="modal fade" id="baseModal" tabindex="-1" aria-labelledby="baseModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="exampleModalLabel">基础资料编辑</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="baseeditForm">
+                    <div class="row mb-3">
+                        <label for="company_id" class="col-sm-2 col-form-label">公司ID:<span class="text-danger">*</span></label>
+                        <div class="col-sm-5 d-flex align-items-center">
+                            <input type="number" class="form-control" id="company_id" name="company_id" required>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <label for="code" class="col-sm-2 col-form-label">邀请码：<span class="text-danger">*</span></label>
+                        <div class="col-sm-5 d-flex align-items-center">
+                            <input type="text" class="form-control" id="code" name="code" required>
+                        </div>
+                    </div>
+
+                    <input type="hidden" name="id" id="id">
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <button type="submit" form="baseeditForm" class="btn btn-primary">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+        <!-- 底部分页控件 -->
+
+    </div>
+
+
+
+<a href="#" class="export-button" data-id="1">导出并刷新</a>
+
+<script>
+document.querySelectorAll('.export-button').forEach(button => {
+    button.addEventListener('click', async function(event) {
+        event.preventDefault();  // 阻止默认的点击行为
+
+        // 获取 data-id 属性中的 id
+        const id = this.getAttribute('data-id');
+
+        if (!id) {
+            alert('ID 参数缺失');
+            return;
+        }
+
+        // 显示确认对话框
+        if (confirm(`确定要导出试用期的数据吗？`)) {
+            // 创建一个隐藏的 <a> 标签来触发新标签页打开
+            const a = document.createElement('a');
+            a.href = `/export/${id}`;
+            a.target = "_blank";  // 在新标签页中打开
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();  // 触发新标签页打开
+            document.body.removeChild(a);
+
+            // 文件下载完成后，延迟一段时间刷新页面
+            setTimeout(() => {
+                window.location.reload();  // 刷新当前页面
+            }, 1000);  // 延迟 2 秒，确保新标签页加载完成
+        } else {
+            console.log('用户取消了导出');
+        }
+    });
+});
+</script>
+
+
+
+{#    <script>#}
+{#        $(document).ready(function () {#}
+{#            $('[data-bs-toggle="tooltip"]').tooltip();#}
+{#        });#}
+{#    </script>#}
+{#<script>#}
+{#    $(document).ready(function () {#}
+{#        // 表单提交处理#}
+{#        $('#baseeditForm').on('submit', function (event) {#}
+{#            event.preventDefault(); // 阻止表单默认提交行为#}
+{##}
+{##}
+{#            var inputElement = document.getElementById('company_id');#}
+{#            var inputElement1 = document.getElementById('companyIdInput');#}
+{##}
+{#    // 获取输入框的值#}
+{#    var inputValue = inputElement.value;#}
+{#    $('#companyIdInput').val(inputValue);#}
+{##}
+{##}
+{##}
+{#            console.log("company_id",inputValue)#}
+{#            // 获取表单数据#}
+{#            var formData = $(this).serialize();#}
+{##}
+{#            console.log('Form Data:', formData); // 调试信息#}
+{##}
+{#            $.ajax({#}
+{#                url: '/save_code_modify', // 替换为你的后端API地址#}
+{#                type: 'POST',#}
+{#                data: formData,#}
+{#                success: function (response) {#}
+{#                    // 处理成功响应#}
+                    {#alert('数据提交成功');#}
+{#                   showCopySuccessToast()#}
+{#                    $('#baseModal').modal('hide'); // 关闭模态对话框#}
+{#                    // 刷新页面或更新DOM#}
+{#                     $('#search_submit').trigger('click');#}
+{##}
+                    {#location.reload();#}
+{#                },#}
+{#                error: function (xhr, status, error) {#}
+{#                    // 处理错误响应#}
+{#                    console.error('数据提交失败:', xhr.responseText);#}
+{#                    // 显示错误信息#}
+{#                    alert('数据提交失败: ' + xhr.responseText);#}
+{#                }#}
+{#            });#}
+{#        });#}
+{#    });#}
+{##}
+{#    function showCopySuccessToast() {#}
+{#                var toastDiv = document.createElement('div');#}
+{#                toastDiv.textContent = '已添加成功';#}
+{#                toastDiv.style.position = 'fixed';#}
+{#                toastDiv.style.top = '10%';#}
+{#                toastDiv.style.left = '50%';#}
+{#                toastDiv.style.transform = 'translateX(-50%)';#}
+{#                toastDiv.style.backgroundColor = '#f8d7da';#}
+{#                toastDiv.style.color = '#721c24';#}
+{#                toastDiv.style.padding = '10px';#}
+{#                toastDiv.style.borderRadius = '5px';#}
+{#                toastDiv.style.zIndex = '1000';#}
+{#                toastDiv.style.minWidth = '250px';#}
+{#                toastDiv.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';#}
+{#                document.body.appendChild(toastDiv);#}
+{##}
+{#                // 移除提示信息#}
+{#                setTimeout(function () {#}
+{#                    document.body.removeChild(toastDiv);#}
+{#                }, 7000);#}
+{#            }#}
+{##}
+{##}
+{##}
+{##}
+{#</script>#}
+{#    <style>#}
+{#    .text-danger {#}
+{#        color: #dc6a35; /* 或其他您希望的颜色 */#}
+{#        margin-left: 15px; /* 添加左侧间距 */#}
+{#    }#}
+{##}
+{##}
+{##}
+{##}
+{#    </style>#}
+{% endblock %}

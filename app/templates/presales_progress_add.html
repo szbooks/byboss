@@ -1,0 +1,207 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+    <div class="container">
+        <form id="add-progress-form" method="post">
+            <!-- 公司ID -->
+            <div class="row mb-3">
+                <label for="company_id" class="col-sm-1 col-form-label">公司ID：</label>
+                <div class="col-sm-5 d-flex align-items-center">
+                    <input type="text" class="form-control" id="company_id" name="company_id">
+                </div>
+                {#                <div>{{ abnormal_result }}</div>#}
+                <div id="company_id_feedback" class="form-text text-danger" style="margin-left: 110px;"></div>
+            </div>
+
+            <div class="row mb-3">
+                <label for="company_id" class="col-sm-1 col-form-label">联系方式：</label>
+                <div class="col-sm-5 d-flex align-items-center">
+                    <input type="text" class="form-control" id="contact" name="contact">
+                </div>
+            </div>
+
+            <!-- 心态 -->
+            {#            <div class="row mb-3">#}
+            {#                <label for="remark" class="col-sm-1 col-form-label">心态：</label>#}
+            {#                <div class="col-sm-5">#}
+            {#                    <textarea class="form-control" id="xin_remark" name="xin_remark" style="height: 150px"></textarea>#}
+            {#                </div>#}
+            {#            </div>#}
+
+            <div class="row mb-3">
+                <label for="remark" class="col-sm-1 col-form-label">心态：</label>
+                <div class="col-sm-5">
+                    <textarea class="form-control" id="xin_remark" name="xin_remark" style="height: 150px"></textarea>
+                    <!-- 心态提示框 -->
+                    <div id="xin_suggestions" class="suggestions-box" style="display: none;border: 1px solid #ccc; max-height: 150px; max-width:530px;overflow-y: auto;"></div>
+                </div>
+            </div>
+
+            <!-- 业态 -->
+            {#            <div class="row mb-3">#}
+            {#                <label for="remark" class="col-sm-1 col-form-label">业态：</label>#}
+            {#                <div class="col-sm-5">#}
+            {#                    <textarea class="form-control" id="yetai_remark" name="yetai_remark" style="height: 150px"></textarea>#}
+            {#                </div>#}
+            {#            </div>#}
+            <div class="row mb-3">
+                <label for="remark" class="col-sm-1 col-form-label">业态：</label>
+                <div class="col-sm-5">
+                    <textarea class="form-control" id="yetai_remark" name="yetai_remark" style="height: 150px"></textarea>
+                    <!-- 业态提示框 -->
+                    <div id="yetai_suggestions" class="suggestions-box" style="display: none; border: 1px solid #ccc; max-height: 150px; max-width:530px;overflow-y: auto"></div>
+                </div>
+            </div>
+
+
+            <!-- 备注 -->
+            <div class="row mb-3">
+                <label for="remark" class="col-sm-1 col-form-label">备注：</label>
+                <div class="col-sm-5">
+                    <textarea class="form-control" id="remark" name="remark" style="height: 150px"></textarea>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-12">
+                    <button type="submit" name="action" value="completed" class="btn btn-success me-2" id="communicated-button">保存</button>
+                    <a href="{{ url_for('main.presales_progress') }}" class="btn btn-secondary">取消</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        $(document).ready(function () {
+            $('#add-progress-form').on('submit', function (event) {
+                event.preventDefault();  // 阻止表单默认提交行为
+
+                const formData = $(this).serialize();  // 序列化表单数据
+
+                $.ajax({
+                    url: "{{ url_for('main.add_presales_progress') }}",
+                    type: 'POST',
+                    data: formData,
+                    success: function (response) {
+                        if (response.success) {
+                            {#alert('保存成功！');#}
+                            // 跳转到 presales_progress 页面
+                            window.location.href = "{{ url_for('main.presales_progress') }}";
+                        } else {
+                            $('#company_id_feedback').text(response.message);
+                        }
+                    },
+                    error: function (jqXHR, textStatus, errorThrown) {
+                        console.error('Error:', textStatus, errorThrown);
+                        alert('发生错误，请稍后再试。');
+                    }
+                });
+            });
+        });
+    </script>
+
+
+
+    <script>
+        $(document).ready(function () {
+            // 初始化心态输入框
+            setupInputWithSuggestions("xin_remark", "xin_suggestions", "xin_remark_history");
+            // 初始化业态输入框
+            setupInputWithSuggestions("yetai_remark", "yetai_suggestions", "yetai_remark_history");
+
+            // 通用函数：为输入框设置提示功能
+            function setupInputWithSuggestions(inputId, suggestionsId, storageKey) {
+                const input = document.getElementById(inputId);
+                const suggestions = document.getElementById(suggestionsId);
+
+                // 从 localStorage 获取历史记录
+                let history = JSON.parse(localStorage.getItem(storageKey)) || [];
+
+                // 显示提示框
+                function showSuggestions(filteredHistory) {
+                    if (filteredHistory.length > 0) {
+                        suggestions.innerHTML = filteredHistory.map(item => `
+                    <div class="suggestion-item" data-value="${item}">${item}</div>
+                `).join("");
+                        suggestions.style.display = "block";
+                    } else {
+                        suggestions.style.display = "none";
+                    }
+                }
+
+                // 隐藏提示框
+                function hideSuggestions() {
+                    suggestions.style.display = "none";
+                }
+
+                // 输入框输入事件
+                input.addEventListener("input", function () {
+                    const value = input.value.trim();
+                    if (value) {
+                        // 过滤历史记录
+                        const filteredHistory = history.filter(item => item.includes(value));
+                        showSuggestions(filteredHistory);
+                    } else {
+                        hideSuggestions();
+                    }
+                });
+
+                // 点击提示项
+                suggestions.addEventListener("click", function (event) {
+                    if (event.target.classList.contains("suggestion-item")) {
+                        input.value = event.target.getAttribute("data-value");
+                        hideSuggestions();
+                    }
+                });
+
+                // Tab 键复制
+                input.addEventListener("keydown", function (event) {
+                    if (event.key === "Tab") {
+                        event.preventDefault(); // 阻止默认 Tab 行为
+                        const firstSuggestion = suggestions.querySelector(".suggestion-item");
+                        if (firstSuggestion) {
+                            input.value = firstSuggestion.getAttribute("data-value");
+                            hideSuggestions();
+                        }
+                    }
+                });
+
+                // 表单提交时保存历史记录
+                document.querySelector("form").addEventListener("submit", function () {
+                    const value = input.value.trim();
+                    if (value && !history.includes(value)) {
+                        history.push(value);
+                        localStorage.setItem(storageKey, JSON.stringify(history));
+                    }
+                });
+            }
+        });
+    </script>
+
+
+
+    <style>
+        /* 提示框样式 */
+        .suggestions-box {
+            position: absolute;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            z-index: 1000;
+            width: 100%;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        /* 提示项样式 */
+        .suggestion-item {
+            padding: 8px;
+            cursor: pointer;
+        }
+
+        .suggestion-item:hover {
+            background-color: #f0f0f0;
+        }
+
+    </style>
+
+{% endblock %}

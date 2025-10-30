@@ -1,0 +1,76 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+    <div class="container">
+        {#      <form id="add-api-form" method="post">#}
+        <form action="{{ url_for('main.do_api', id=api.id) }}" method="post" id="transferForm" enctype="multipart/form-data">
+
+
+            <!-- 公司ID -->
+            <div class="row mb-3">
+                <div class="col-1">公司ID:</div>
+                <div class="col-5">{{ api.granted_company_id }}</div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-1">公司名称:</div>
+                <div class="col-5">{{ api.name }}</div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-1">appid:</div>
+                <div class="col-5">{{ api.app_id }}</div>
+            </div>
+
+            <div class="row mb-3">
+                    <label for="push_add" class="col-1 col-form-label">推送地址:</label>
+                    <div class="col-5">
+                        <textarea class="form-control" id="push_add" name="push_add" style="height: 150px">{{ api.config|default('', true) }}</textarea>
+                    </div>
+            </div>
+
+
+            {#        <!-- 推送渠道 -->#}
+            {#        <div class="row mb-3">#}
+            {#            <label for="channel" class="col-sm-1 col-form-label">推送渠道：</label>#}
+            {#            <div class="col-sm-5 d-flex align-items-center">#}
+            {#                <select class="form-select me-2 search_operator" name="channel" id="channel" onchange="updateChannelDetails()">#}
+            {#                    <option value=''>请选择渠道</option>#}
+            {#                    {% for channel in channels %}#}
+            {#                        <option value='{{ channel.id }}' data-name='{{ channel.channel }}' data-address='{{ channel.address }}'>{{ channel.channel }}</option>#}
+            {#                    {% endfor %}#}
+            {#                    <option value='new' data-name='' data-address=''>新建渠道</option>#}
+            {#                </select>#}
+            {#            </div>#}
+            {#        </div>#}
+            {##}
+            {#        <!-- 渠道名称 -->#}
+            {#        <div class="row mb-3" id="channelNameRow" style="display:none;">#}
+            {#            <label for="channel_name" class="col-sm-1 col-form-label">渠道名称：</label>#}
+            {#            <div class="col-sm-2 d-flex align-items-center">#}
+            {#                <input type="text" class="form-control" id="channel_name" name="channel_name">#}
+            {#            </div>#}
+            {#        </div>#}
+            {##}
+            {#        <!-- 推送地址 -->#}
+            {#        <div class="row mb-3" id="pushaddressRow" style="display:none;">#}
+            {#            <label for="pushaddress" class="col-sm-1 col-form-label">推送地址：</label>#}
+            {#            <div class="col-sm-5">#}
+            {#                <textarea class="form-control" id="pushaddress" name="pushaddress" style="height: 150px"></textarea>#}
+            {#            </div>#}
+            {#        </div>#}
+            {##}
+                    <div class="row">
+                        <div class="col-sm-10 offset-sm-1">
+                            <button type="submit" class="btn btn-primary me-2">提交</button>
+                            <a href="{{ url_for('main.api_list') }}" class="btn btn-secondary">取消</a>
+                        </div>
+                    </div>
+        </form>
+    </div>
+
+    <!-- JavaScript 用于更新渠道名称和推送地址 -->
+    <script>
+
+    </script>
+{% endblock %}

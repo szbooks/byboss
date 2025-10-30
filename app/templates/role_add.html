@@ -1,0 +1,141 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+{#    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/themes/default/style.min.css"/>#}
+{#    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.min.css') }}">#}
+    <div class="container">
+
+    <form method="POST" id="role-form">
+        <div class="form-group">
+            <label for="role_name">角色名称</label>
+            <input type="text" id="role_name" name="role_name" value="" required>
+        </div>
+
+        <div class="form-group">
+            <label for="permissions">权限</label>
+            <div id="permissions-tree" style="width: 300px"></div>
+        </div>
+
+
+        <button type="submit" class="btn btn-primary me-2">提交</button>
+            <a href="{{ url_for('main.roles') }}" class="btn btn-secondary">取消</a>
+    </form>
+
+
+    <style>
+
+
+
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+
+        #role_name {
+            width: 300px;
+
+        }
+
+
+
+
+
+        /* 自定义 CSS 样式，去掉选中后的背景色 */
+        .jstree-clicked {
+            background: none !important; /* 或者尝试使用 transparent */
+            box-shadow: none !important; /* 去除可能的阴影 */
+        }
+
+        .jstree-wholerow-clicked {
+            background: none !important; /* 如果使用了 whole-row 插件 */
+        }
+
+        .jstree-anchor.jstree-clicked {
+            text-decoration: none; /* 确保文本装饰（如下划线）不被添加 */
+            color: inherit; /* 确保文本颜色不被改变 */
+        }
+    </style>
+
+{#    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>#}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/jstree.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const permissionsTree = {{ permissions_tree | tojson }};
+            const selectedPermissions = {{ selected_permissions | tojson }};
+
+            console.log('permissionsTree:', permissionsTree);
+            console.log('selectedPermissions:', selectedPermissions);
+
+            $('#permissions-tree').jstree({
+                core: {
+                    data: permissionsTree,
+                    themes: {
+                        responsive: true
+                    }
+                },
+                plugins: ["wholerow", "checkbox"]
+            }).on('ready.jstree', function () {
+                // 确保 jsTree 完全初始化后再设置选中状态
+                const instance = $('#permissions-tree').jstree(true);
+                instance.check_node(selectedPermissions);
+
+                // 默认展开所有子节点
+                instance.open_all();
+
+            });
+
+            $('#role-form').on('submit', function (event) {
+                event.preventDefault();
+
+                const role_name = $('#role_name').val();
+                const action = $('#action').val();
+                const selectedNodes = $('#permissions-tree').jstree(true).get_checked(true);
+
+                const selectedPermissions = selectedNodes.map(node => node.id);
+
+                // 发送 AJAX 请求更新角色信息
+                fetch('/add_role', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        role_name: role_name,
+                        permissions: selectedPermissions,
+                        action: action
+                    })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                             window.location.href = "{{ url_for('main.roles') }}";
+                        } else {
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('发生错误，请重试！');
+                    });
+            });
+        });
+    </script>
+{% endblock %}
